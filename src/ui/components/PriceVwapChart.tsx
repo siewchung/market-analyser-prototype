@@ -16,24 +16,33 @@ const CHART_NOTE: Readonly<Record<ChartMode, (from: string, to: string) => strin
   latest_day: (day) => `Showing the latest trading day, ${formatDate(day)}. Set From and To above to see another period.`,
   chosen_day: (day) => `Showing ${formatDate(day)}.`,
   filtered: (from, to) => `Showing ${from === to ? formatDate(from) : `${formatDate(from)} to ${formatDate(to)}`}.`,
+  whole_history: (from, to) => `Showing every trading day in the file, ${formatDate(from)} to ${formatDate(to)}. Set From and To above to zoom in.`,
 };
 
-/** Close price with the rolling VWAP overlaid, for one contract. Defaults to a single recent day. */
+/**
+ * Close price for one contract.
+ * Minute data: the rolling VWAP is overlaid, and the chart defaults to a single recent day.
+ * Daily data: close only, over the whole file. A 15-minute VWAP on one bar per day would just be that day's average price.
+ */
 export function PriceVwapChart({ result, windowMinutes, pickedContract, onChartDay, priceDecimals }: Props) {
-  const { chartContract, chartRange, chartDays, vwap: points } = result;
+  const { chartContract, chartRange, chartDays, barInterval, vwap: points } = result;
+  const isDaily = barInterval === 'daily';
   // The nearest days with data either side of what's shown (skips weekends and gaps automatically).
   const previousDay = chartRange ? chartDays.filter((d) => d < chartRange.from).at(-1) : undefined;
   const nextDay = chartRange ? chartDays.find((d) => d > chartRange.to) : undefined;
   const singleDay = chartRange !== null && chartRange.from === chartRange.to;
-  // One day: show times on the axis. Several days: show dates.
-  const tick = (t: number) => (singleDay ? formatTime(t) : formatShortDate(t));
+  // One day: show times on the axis. Several days: show dates, with the year if the chart spans more than one year.
+  const spansYears = chartRange !== null && chartRange.from.slice(0, 4) !== chartRange.to.slice(0, 4);
+  const tick = (t: number) => (singleDay ? formatTime(t) : formatShortDate(t, spansYears));
+  // Daily bars have no meaningful time of day, so the tooltip shows the date only.
+  const tooltipLabel = (t: number) => (isDaily ? formatDate(new Date(t).toISOString().slice(0, 10)) : `${formatDateTime(t)} CT`);
 
   return (
     <div className="panel">
       <h3 className="panel-title">
-        {chartContract ?? 'Price'}: close vs rolling {windowMinutes}-minute VWAP
+        {chartContract ?? 'Price'}: {isDaily ? 'daily close' : `close vs rolling ${windowMinutes}-minute VWAP`}
       </h3>
-      {chartRange && (
+      {chartRange && !isDaily && (
         <div className="day-nav">
           <button className="button small-button" onClick={() => onChartDay(previousDay)} disabled={!previousDay}>
             ◀ Previous day
@@ -63,10 +72,12 @@ export function PriceVwapChart({ result, windowMinutes, pickedContract, onChartD
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={tick} minTickGap={40} stroke="var(--muted)" />
               <YAxis domain={['auto', 'auto']} width={70} tickFormatter={(v: number) => formatNumber(v, Math.min(priceDecimals, 3))} /* axis: no padded zeros */ stroke="var(--muted)" />
-              <Tooltip labelFormatter={(t) => `${formatDateTime(Number(t))} CT`} formatter={(v) => (typeof v === 'number' ? formatPrice(v, priceDecimals) : String(v))} />
+              <Tooltip labelFormatter={(t) => tooltipLabel(Number(t))} formatter={(v) => (typeof v === 'number' ? formatPrice(v, priceDecimals) : String(v))} />
               <Legend />
               <Line dataKey="close" name="Close" stroke="var(--series-1)" dot={false} isAnimationActive={false} />
-              <Line dataKey="vwap" name={`VWAP (${windowMinutes}m)`} stroke="var(--series-2)" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls />
+              {!isDaily && (
+                <Line dataKey="vwap" name={`VWAP (${windowMinutes}m)`} stroke="var(--series-2)" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>

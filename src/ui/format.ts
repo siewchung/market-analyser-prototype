@@ -20,10 +20,13 @@ export const formatTime = (timestamp: number): string => new Date(timestamp).toI
 /** Wall-clock ms -> "Mon 9 Mar 2026 09:30". */
 export const formatDateTime = (timestamp: number): string => `${formatDate(new Date(timestamp).toISOString().slice(0, 10))} ${formatTime(timestamp)}`;
 
-/** Wall-clock ms -> "9 Mar", for chart axes where space is tight. */
-export const formatShortDate = (timestamp: number): string => {
+/**
+ * Wall-clock ms -> "9 Mar", for chart axes where space is tight.
+ * With withYear -> "9 Mar 2026", for charts that cross into another year, where "9 Mar" alone would be ambiguous.
+ */
+export const formatShortDate = (timestamp: number, withYear = false): string => {
   const d = new Date(timestamp);
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}${withYear ? ` ${d.getUTCFullYear()}` : ''}`;
 };
 
 export const formatNumber = (value: number, maxDecimals = 4): string => value.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });

@@ -113,6 +113,7 @@ describe('pipeline: real sample data', () => {
     const minuteVolume = dataset.cleanBars.reduce((sum, b) => sum + (b.volume ?? 0), 0);
     expect(result.daily.reduce((sum, d) => sum + d.volume, 0)).toBe(minuteVolume);
     expect(minuteVolume).toBe(107312444); // matches reported_total_volume in the dataset's files.csv
+    expect(result.barInterval).toBe('intraday');
     // The contract's final days are nearly empty, so the chart opens on the latest day with an hour or more of trading.
     expect(result.chartRange?.mode).toBe('latest_active_day');
     expect(result.chartRange?.from).toBe(result.chartRange?.to);
@@ -142,5 +143,23 @@ describe('pipeline: real sample data', () => {
     expect(dataset.summary).toMatchObject({ totalRows: 190, rejectedRows: 0 });
     expect(query(dataset, { contracts: [] }).daily).toHaveLength(190);
     expect(dataset.insights.map((i) => i.id)).toEqual(expect.arrayContaining(['gap-daily-ZNH26']));
+  });
+
+  it('charts the whole history of a daily file, not a single point', async () => {
+    const dataset = await loadFixture('sample-daily.parquet');
+    const result = query(dataset, { contracts: [] });
+    expect(result.barInterval).toBe('daily');
+    expect(result.chartRange).toEqual({ ...dataset.summary.dateRange, mode: 'whole_history' });
+    expect(result.vwap).toHaveLength(190); // every day, well under the 2,000-point limit so nothing is thinned out
+  });
+
+  it('lets a date range zoom into a daily file, and ignores a chosen single day', async () => {
+    const dataset = await loadFixture('sample-daily.parquet');
+    const zoomed = query(dataset, { contracts: [], from: '2025-12-01', to: '2025-12-31' });
+    expect(zoomed.chartRange).toMatchObject({ mode: 'filtered' });
+    expect(zoomed.barInterval).toBe('daily');
+    expect(zoomed.vwap.length).toBeGreaterThan(15);
+    // Stepping day by day isn't offered for daily data, so a stray chartDay doesn't shrink the chart to one point.
+    expect(query(dataset, { contracts: [] }, { chartDay: '2025-12-01' }).chartRange?.mode).toBe('whole_history');
   });
 });

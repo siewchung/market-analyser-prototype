@@ -14,6 +14,7 @@ describe('date formatting', () => {
     expect(formatDate('2025-07-15')).toBe('Tue 15 Jul 2025');
     expect(formatDate('2025-09-02')).toBe('Tue 2 Sep 2025');
     expect(formatShortDate(wall('2025-06-27T09:30'))).toBe('27 Jun');
+    expect(formatShortDate(wall('2025-06-27T09:30'), true)).toBe('27 Jun 2025');
   });
 });
 

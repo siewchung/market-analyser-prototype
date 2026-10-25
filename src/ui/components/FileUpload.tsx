@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react';
 import dirtySampleUrl from '../../../tests/fixtures/dirty.csv?url';
+import dailySampleUrl from '../../../tests/fixtures/sample-daily.parquet?url';
 import minuteSampleUrl from '../../../tests/fixtures/sample-minute.parquet?url';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 const SAMPLES = [
   { label: 'Messy CSV sample', fileName: 'dirty.csv', url: dirtySampleUrl },
   { label: 'Real ZN minute data', fileName: 'sample-minute.parquet', url: minuteSampleUrl },
+  { label: 'Real ZN daily data', fileName: 'sample-daily.parquet', url: dailySampleUrl }, // same contract (ZNH26), one row per day
 ] as const;
 
 /** Lets the user pick a CSV/Parquet file, or load one of the samples. */

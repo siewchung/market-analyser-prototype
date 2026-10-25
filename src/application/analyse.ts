@@ -13,6 +13,7 @@ import { toDateString } from '../domain/time';
 import type {
   AnalysisConfig,
   Bar,
+  BarInterval,
   ChartMode,
   Filter,
   Insight,
@@ -91,10 +92,13 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
 
   const daily = dailyBars(dataset.cleanBars.filter((b) => matchesFilter(filter, b.contract, b.tradingDate)));
 
-  // Chart: show a single day unless the user set a date range. A 15-minute VWAP is an intraday measure,
+  // Chart, minute data: show a single day unless the user set a date range. A 15-minute VWAP is an intraday measure,
   // and months of minute data squeezed into one chart would hide it completely.
+  // Chart, daily data: show every day, because a single day would be just one point.
   const contractPoints = dataset.vwap.filter((p) => p.contract === chartContract && matchesFilter(filter, p.contract, p.tradingDate));
-  const { day, mode } = chooseChartDay(contractPoints, filter, view);
+  // Judged on the contract's whole history, so a narrow date filter can't make minute data look daily.
+  const barInterval = detectBarInterval(dataset.vwap.filter((p) => p.contract === chartContract));
+  const { day, mode } = barInterval === 'daily' ? wholeHistory(filter) : chooseChartDay(contractPoints, filter, view);
   const vwap = day ? contractPoints.filter((p) => p.tradingDate === day) : contractPoints;
   const first = vwap[0];
   const last = vwap.at(-1);
@@ -108,6 +112,7 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
   return {
     daily,
     chartContract,
+    barInterval,
     chartRange: first && last ? { from: first.tradingDate, to: last.tradingDate, mode } : null,
     chartDays: [...new Set(contractPoints.map((p) => p.tradingDate))],
     vwap: downsample(vwap, config.maxChartPoints),
@@ -115,6 +120,17 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
     totalIssues: issues.length,
     issueCountsInView,
   };
+}
+
+/** Daily data has at most one bar per trading day; anything with more is intraday (e.g. minute bars). */
+function detectBarInterval(points: readonly VwapPoint[]): BarInterval {
+  const days = new Set(points.map((p) => p.tradingDate));
+  return points.length > 0 && days.size === points.length ? 'daily' : 'intraday';
+}
+
+/** Daily data: the whole file, or the user's date range if they set one. Stepping day by day doesn't apply. */
+function wholeHistory(filter: Filter): { day: undefined; mode: ChartMode } {
+  return { day: undefined, mode: filter.from || filter.to ? 'filtered' : 'whole_history' };
 }
 
 /** At least this many one-minute bars (an hour of trading) for a day to be worth charting by default. */

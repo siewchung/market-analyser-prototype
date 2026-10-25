@@ -14,6 +14,16 @@ Your file never leaves your computer. All the work happens inside your web brows
 
 > This is a prototype built for a coding exercise (brief in [`docs/`](docs/)). It's deliberately simple.
 
+## What it doesn't do (yet)
+
+Worth knowing before you start:
+
+- **One file at a time.** The sample dataset has one file per contract month, e.g. ZNH26 is the March 2026 contract. So in practice you look at one contract at a time. A contract is only heavily traded for a few months before trading moves to the next one. The app can't join contracts into one continuous price history or compare them side by side.
+- **Holidays show up as gaps**, and market hours assume the main CME schedule.
+- **Prices are shown as decimals**, not in 32nds as Treasury traders quote them.
+
+The full list is under [Known limitations](#known-limitations).
+
 ## How it works
 
 ```mermaid
@@ -60,10 +70,11 @@ For the technical design behind this (layers, data flow, key types and how to ex
 
 ### 1. Load some data
 
-Click **Upload CSV or Parquet file** and choose a file. You can also click one of the two samples:
+Click **Upload CSV or Parquet file** and choose a file. You can also click one of the three samples:
 
 - **Messy CSV sample.** A small made-up file with every kind of problem planted in it. It's the quickest way to see what the app can catch.
-- **Real ZN minute data.** About 97,000 one-minute price records for the 10-year US Treasury note future, from a [public sample dataset](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample).
+- **Real ZN minute data.** About 97,000 one-minute price records for the 10-year US Treasury note future, March 2026 contract (ZNH26), from a [public sample dataset](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample).
+- **Real ZN daily data.** The same contract, one row per trading day: 190 days from June 2025 to March 2026. Most trading happens from mid-November to late February. Before that, many days have no trades and only a settlement price.
 
 Want more real data? Run `npm run download-dataset` to get 40 contracts across 8 markets, in daily and minute form, then upload any file from `sample-data/data/`.
 
@@ -87,7 +98,7 @@ The page has three sections. Use the links in the black bar at the top to jump b
 | Part | What it tells you |
 |---|---|
 | **Filters** | Narrow the chart, daily bars and issue log to one contract and/or a date range. |
-| **Price chart** | Closing price with the 15-minute VWAP overlaid, for one contract. It opens on the latest day with at least an hour of trading. Use **Previous day** / **Next day** to step through days, or set From and To for a longer period. |
+| **Price chart** | Closing price for one contract. **Minute data:** the 15-minute VWAP is overlaid, and the chart opens on the latest day with at least an hour of trading. Use **Previous day** / **Next day** to step through days, or set From and To for a longer period. **Daily data:** the chart shows every day in the file, with no VWAP line (a 15-minute average means nothing with one bar a day). Set From and To to zoom in. |
 | **Daily bars** | One row per contract per trading day: open, high, low, close and total volume. |
 
 **Issue log: exactly what's wrong, and where?**
@@ -138,6 +149,7 @@ All times are shown in **Chicago time (CT)**, the exchange's own time zone, exac
 
 ## Known limitations
 
+- **One file at a time.** Loading another file replaces the current one. Each file is checked on its own, which suits data quality work. For market analysis it means one contract at a time: there's no continuous history across contract rolls and no side-by-side comparison of contracts.
 - **Public holidays aren't known to the app.** A missing day of data on a holiday is flagged as a gap. The insights point out that missing weekdays are probably holidays.
 - **Market hours assume the main CME electronic schedule.** Products with different hours will show gaps at their regular closed times. The insights spot these and suggest checking the product's trading schedule.
 - **Prices are shown as decimals.** Treasury traders usually quote ZN in 32nds of a point (e.g. 112-08+). Here it's shown as 112.250000, because ZN trades in 1/64ths of a point and needs 6 decimals to be exact.
@@ -151,6 +163,7 @@ All times are shown in **Chicago time (CT)**, the exchange's own time zone, exac
 
 These are ideas raised during review that were deliberately left out of the prototype:
 
+- **Several contracts together.** Join contracts into one continuous history, and compare contracts side by side. This needs a rule for when to switch from one contract to the next.
 - **Export.** Download the issue log and the cleaned data as CSV.
 - **Exchange holiday calendar.** Stop flagging holidays as gaps.
 - **Per-product settings.** Trading hours, and price formats such as 32nds for Treasuries.
@@ -187,7 +200,8 @@ To share it with business users without them installing anything, run `npm run b
 - **Timestamps stay in Chicago wall-clock time.** The source stores them that way and warns against converting them ([dataset README](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample)). Internally they're read with `getUTC*` so the viewer's timezone and daylight saving can't shift them.
 - **Trading day = CME session.** Bars from 17:00 CT onwards go to the next day. The dataset's own `trading_date` column is the calendar date, so it's ignored. Against the vendor's daily file, the session rule matches daily high and low on 62% of days, versus 26% for calendar dates. An integration test pins this.
 - **The VWAP window is (t − 15 min, t]**, using typical price (H+L+C)/3. If nothing traded in the window, the result is `null`. It's calculated on the full history before filtering, so the edges of a date range are correct.
-- **The chart defaults to one day.** A 15-minute VWAP is an intraday measure; months of minute data in one chart hide it. With no date filter, the chart opens on the latest day with at least 60 bars. The very latest day can be nearly empty, e.g. for an expiring contract.
+- **The chart defaults to one day for minute data.** A 15-minute VWAP is an intraday measure; months of minute data in one chart hide it. With no date filter, the chart opens on the latest day with at least 60 bars. The very latest day can be nearly empty, e.g. for an expiring contract.
+- **Daily data charts the whole file, without VWAP.** A contract counts as daily when it never has more than one bar per trading day. This is judged on the whole file, so a narrow date filter can't make minute data look daily.
 - **Filters and view options are separate.** `Filter` (contract, dates) changes what's analysed in the market view and issue log. `ViewOptions` (chart day, issue type) only changes what's displayed, so stepping the chart through days doesn't shrink the daily table.
 - **Quality checks run once on the whole file.** Filters only change the view.
 - **No backend and no database.** Files are a few hundred thousand rows at most, which plain TypeScript in a Web Worker handles in under a second. It also keeps every rule typed and unit-testable. DuckDB-WASM could replace the internals of `load()` and `query()` later without touching the UI.
