@@ -14,6 +14,46 @@ Your file never leaves your computer. All the work happens inside your web brows
 
 > This is a prototype built for a coding exercise (brief in [`docs/`](docs/)). It's deliberately simple.
 
+## How it works
+
+```mermaid
+flowchart LR
+    file["Your data file<br/>(CSV or Parquet)"]
+
+    subgraph browser["Everything happens in your browser"]
+        direction LR
+        read["Step 1: Read<br/>Find the columns.<br/>Set aside rows<br/>that can't be read."]
+        check["Step 2: Check<br/>Look for gaps, duplicates,<br/>impossible prices<br/>and bad volumes."]
+        explain["Step 3: Explain<br/>Spot patterns and<br/>suggest a rule<br/>for each one."]
+        clean["Step 4: Clean<br/>Remove bad rows<br/>before any<br/>calculations."]
+    end
+
+    subgraph results["What you see"]
+        direction TB
+        health["Data health<br/>Verdict, quality checks,<br/>insights and suggested rules"]
+        issues["Issue log<br/>Every problem,<br/>with its row number"]
+        market["Market view<br/>Price chart with VWAP,<br/>daily bars"]
+    end
+
+    file --> read --> check
+    check --> explain --> health
+    check --> issues
+    check --> clean --> market
+
+    classDef step fill:#ffffff,stroke:#000000,color:#000000
+    classDef result fill:#0c6cce,stroke:#0c6cce,color:#ffffff
+    classDef input fill:#000000,stroke:#000000,color:#ffffff
+    classDef area fill:#f5f5f5,stroke:#cccccc,color:#000000
+    class read,check,explain,clean step
+    class health,market,issues result
+    class file input
+    class browser,results area
+```
+
+The three blue boxes are the three sections of the app. Problems are always reported in full, while the market numbers are worked out from the cleaned data only.
+
+For the technical design behind this (layers, data flow, key types and how to extend the app), see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ---
 
 ## Using the app
