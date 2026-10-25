@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "fetch-sample": "./scripts/fetch-sample.sh"
+    "fetch-sample": "./scripts/fetch-sample.sh",
+    "download-dataset": "node scripts/download-dataset.ts"
   },
   "keywords": [],
   "author": "",
