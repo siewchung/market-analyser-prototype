@@ -65,6 +65,8 @@ Click **Upload CSV or Parquet file** and choose a file. You can also click one o
 - **Messy CSV sample.** A small made-up file with every kind of problem planted in it. It's the quickest way to see what the app can catch.
 - **Real ZN minute data.** About 97,000 one-minute price records for the 10-year US Treasury note future, from a [public sample dataset](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample).
 
+Want more real data? Run `npm run download-dataset` to get 40 contracts across 8 markets, in daily and minute form, then upload any file from `sample-data/data/`.
+
 Your file needs a column for each of these: contract, timestamp, open, high, low, close. A volume column is optional. Common column names are recognised automatically, so "Contract", "contract_symbol" and "Symbol" all work.
 
 ### 2. Read the results
@@ -178,6 +180,7 @@ To share it with business users without them installing anything, run `npm run b
 | `npm run typecheck` | TypeScript strict-mode check |
 | `npm run build` | Type check, then build a static site into `dist/` |
 | `npm run fetch-sample` | Re-download the sample Parquet files into `tests/fixtures/` |
+| `npm run download-dataset` | Download the full public sample (80 Parquet files, daily and minute, ~100 MB) into `sample-data/` to upload in the app |
 
 ### Key technical decisions
 
