@@ -90,6 +90,7 @@ export interface Filter {
   readonly contracts: readonly string[];
   readonly from?: string;
   readonly to?: string;
+  readonly excludeErrors?: boolean; // leave bars with error-level issues out of the analytics (default: true)
 }
 
 /** A recurring pattern found in the quality issues, with a rule we suggest adopting. */
@@ -158,7 +159,6 @@ export type BarInterval = 'daily' | 'intraday';
  */
 export interface ViewOptions {
   readonly chartDay?: string; // "YYYY-MM-DD": show this single day on the chart
-  readonly issueKind?: IssueKind; // show only this kind of issue in the issue log
 }
 
 /** Everything the dashboard needs for the current filter. */
@@ -172,7 +172,5 @@ export interface QueryResult {
   readonly chartRange: { readonly from: string; readonly to: string; readonly mode: ChartMode } | null;
   readonly chartDays: readonly string[]; // every trading day the chart contract has data for (within the date filter), oldest first
   readonly vwap: readonly VwapPoint[]; // for chartContract and chartRange only, downsampled for the chart
-  readonly issues: readonly QualityIssue[]; // capped at maxIssueRows
-  readonly totalIssues: number; // the real count before the cap
-  readonly issueCountsInView: Readonly<Record<IssueKind, number>>; // per kind, for the current filter (ignores the issueKind choice)
+  readonly issuesByDay: Readonly<Record<string, number>>; // chartContract's issue count per trading day, for the daily bars table
 }

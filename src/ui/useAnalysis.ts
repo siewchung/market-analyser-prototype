@@ -1,38 +1,45 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Filter, Insight, LoadSummary, QueryResult, RejectedRow, ViewOptions } from '../domain/types';
-import type { WorkerRequest, WorkerResponse } from '../infrastructure/worker/protocol';
+import type { QualityReport } from '../application/qualityReport';
+import type { Filter, QueryResult, ViewOptions } from '../domain/types';
+import type { DataOrigin, WorkerRequest, WorkerResponse } from '../infrastructure/worker/protocol';
 
 /** Where the app is up to. Each state carries only the data that makes sense in that state. */
 export type AnalysisState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'loading'; readonly fileName: string }
-  | { readonly status: 'error'; readonly message: string }
+  | { readonly status: 'loading'; readonly message: string }
+  | { readonly status: 'error'; readonly message: string } // nothing could be loaded at all
   | {
       readonly status: 'ready';
-      readonly summary: LoadSummary;
-      readonly insights: readonly Insight[];
-      readonly rejected: readonly RejectedRow[];
+      readonly origin: DataOrigin;
+      readonly fileName: string | null;
+      readonly loadedAt: Date;
+      readonly report: QualityReport;
+      readonly minuteContracts: readonly string[];
       readonly filter: Filter;
       readonly view: ViewOptions;
       readonly result: QueryResult | null; // null until the first query comes back
+      readonly pending: boolean; // true while the worker is working on the latest filter or view change
+      readonly error: string | null; // e.g. an upload that couldn't be read; the previous data stays on screen
     };
 
-const ALL: Filter = { contracts: [] };
+export type ReadyState = Extract<AnalysisState, { status: 'ready' }>;
 
 /**
  * Owns the background worker and turns its messages into React state.
- * Components call loadFile(), setFilter() and setView(); they never talk to the worker directly.
+ * Components call uploadFile(), reset(), setFilter() and setView(); they never talk to the worker directly.
  */
 export function useAnalysis(): {
   state: AnalysisState;
-  loadFile: (fileName: string, bytes: ArrayBuffer) => void;
+  uploadFile: (fileName: string, bytes: ArrayBuffer) => void;
+  reset: () => void;
   setFilter: (filter: Filter) => void;
   setView: (view: ViewOptions) => void;
 } {
-  const [state, setState] = useState<AnalysisState>({ status: 'idle' });
+  const [state, setState] = useState<AnalysisState>({ status: 'loading', message: 'Loading the sample data…' });
   const workerRef = useRef<Worker | null>(null);
   // The latest filter and view, kept outside React state so callbacks always send the current values.
-  const current = useRef<{ filter: Filter; view: ViewOptions }>({ filter: ALL, view: {} });
+  const current = useRef<{ filter: Filter; view: ViewOptions }>({ filter: { contracts: [] }, view: {} });
+  // Each query gets a number. Answers to older queries are ignored, so the screen never shows a contract the user has left.
+  const latestQueryId = useRef(0);
 
   const send = useCallback((request: WorkerRequest, transfer: Transferable[] = []) => {
     workerRef.current?.postMessage(request, transfer);
@@ -42,8 +49,9 @@ export function useAnalysis(): {
   const requery = useCallback(
     (filter: Filter, view: ViewOptions) => {
       current.current = { filter, view };
-      setState((previous) => (previous.status === 'ready' ? { ...previous, filter, view } : previous));
-      send({ type: 'query', filter, view });
+      latestQueryId.current += 1;
+      setState((previous) => (previous.status === 'ready' ? { ...previous, filter, view, pending: true } : previous));
+      send({ type: 'query', queryId: latestQueryId.current, filter, view });
     },
     [send],
   );
@@ -55,35 +63,62 @@ export function useAnalysis(): {
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const response = event.data;
       switch (response.type) {
-        case 'loaded':
-          current.current = { filter: ALL, view: {} };
-          setState({ status: 'ready', summary: response.summary, insights: response.insights, rejected: response.rejected, filter: ALL, view: {}, result: null });
-          worker.postMessage({ type: 'query', filter: ALL, view: {} } satisfies WorkerRequest);
+        case 'ready': {
+          // Start Analytics on the first contract, with bars that have errors left out.
+          const first = response.report.contracts[0]?.contract;
+          const filter: Filter = { contracts: first ? [first] : [], excludeErrors: true };
+          setState({
+            status: 'ready',
+            origin: response.origin,
+            fileName: response.fileName,
+            loadedAt: new Date(),
+            report: response.report,
+            minuteContracts: response.minuteContracts,
+            filter,
+            view: {},
+            result: null,
+            pending: true,
+            error: null,
+          });
+          current.current = { filter, view: {} };
+          latestQueryId.current += 1;
+          worker.postMessage({ type: 'query', queryId: latestQueryId.current, filter, view: {} } satisfies WorkerRequest);
           return;
+        }
         case 'result':
-          setState((previous) => (previous.status === 'ready' ? { ...previous, result: response.result } : previous));
+          if (response.queryId !== latestQueryId.current) return; // an answer to a query the user has moved on from
+          setState((previous) => (previous.status === 'ready' ? { ...previous, result: response.result, pending: false } : previous));
           return;
         case 'error':
-          setState({ status: 'error', message: response.message });
+          // Keep showing the current data if there is any; only a failed startup leaves nothing to show.
+          setState((previous) =>
+            previous.status === 'ready' ? { ...previous, pending: false, error: response.message } : { status: 'error', message: response.message },
+          );
           return;
       }
     };
     worker.onerror = (event) => setState({ status: 'error', message: event.message || 'The analysis worker crashed.' });
+    worker.postMessage({ type: 'startup' } satisfies WorkerRequest);
 
     return () => worker.terminate();
   }, []);
 
-  const loadFile = useCallback(
+  const uploadFile = useCallback(
     (fileName: string, bytes: ArrayBuffer) => {
-      setState({ status: 'loading', fileName });
+      setState((previous) => (previous.status === 'ready' ? { ...previous, pending: true, error: null } : previous));
       send({ type: 'load', fileName, bytes }, [bytes]); // hand the bytes over instead of copying them
     },
     [send],
   );
 
-  // A new filter resets the chart to its default day (the chosen day may not be in the new range); the issue type choice is kept.
-  const setFilter = useCallback((filter: Filter) => requery(filter, { issueKind: current.current.view.issueKind }), [requery]);
+  const reset = useCallback(() => {
+    setState((previous) => (previous.status === 'ready' ? { ...previous, pending: true, error: null } : previous));
+    send({ type: 'startup' });
+  }, [send]);
+
+  // A new filter resets the chart to its default day, because the chosen day may not be in the new range.
+  const setFilter = useCallback((filter: Filter) => requery(filter, {}), [requery]);
   const setView = useCallback((view: ViewOptions) => requery(current.current.filter, view), [requery]);
 
-  return { state, loadFile, setFilter, setView };
+  return { state, uploadFile, reset, setFilter, setView };
 }

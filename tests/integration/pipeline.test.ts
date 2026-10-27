@@ -69,15 +69,12 @@ describe('pipeline: dirty.csv', async () => {
     expect(result.chartRange?.mode).toBe('filtered');
     expect(result.daily.map((d) => d.tradingDate)).toEqual(['2025-11-04']);
     expect(result.vwap).toHaveLength(2);
-    expect(result.issues.every((i) => i.contract === 'CLZ25')).toBe(true);
-    expect(result.totalIssues).toBe(result.issues.length);
   });
 
-  it('defaults the chart to the first contract and lists the most serious issues first', () => {
+  it('defaults the chart to the first contract', () => {
     const result = query(dataset, { contracts: [] });
     expect(result.chartContract).toBe('CLZ25');
     expect(result.chartRange).toEqual({ from: '2025-11-04', to: '2025-11-04', mode: 'latest_day' }); // too little data for an 'active' day
-    expect(result.issues[0]?.kind).toMatch(/duplicate_conflict|invalid_price/);
   });
 });
 
@@ -94,12 +91,29 @@ describe('pipeline: view options', async () => {
   it('ignores a chosen day the contract has no data for', () => {
     expect(query(dataset, { contracts: ['CLZ25'] }, { chartDay: '2030-01-01' }).chartRange?.mode).not.toBe('chosen_day');
   });
+});
 
-  it('narrows the issue log to one issue type, keeping per-type counts for the chips', () => {
-    const result = query(dataset, { contracts: [] }, { issueKind: 'gap' });
-    expect(result.issues.every((i) => i.kind === 'gap')).toBe(true);
-    expect(result.totalIssues).toBe(4);
-    expect(result.issueCountsInView).toMatchObject({ gap: 4, invalid_volume: 3, duplicate_conflict: 1 });
+describe('pipeline: exclude bars with errors', async () => {
+  const dataset = await loadFixture('dirty.csv');
+  const volumeOn = (result: ReturnType<typeof query>, date: string): number => result.daily.find((d) => d.tradingDate === date)?.volume ?? 0;
+
+  it('excludes bars with errors by default', () => {
+    expect(volumeOn(query(dataset, { contracts: ['ESZ25'] }), '2025-11-03')).toBe(
+      volumeOn(query(dataset, { contracts: ['ESZ25'], excludeErrors: true }), '2025-11-03'),
+    );
+  });
+
+  it('keeps bars with impossible prices and conflicting duplicates when the toggle is off', () => {
+    const on = query(dataset, { contracts: ['ESZ25'] });
+    const off = query(dataset, { contracts: ['ESZ25'], excludeErrors: false });
+    // Line 8 (high below low, volume 80), line 9 (negative open, volume 70) and line 7 (conflicting copy, volume 115).
+    expect(volumeOn(off, '2025-11-03')).toBe(volumeOn(on, '2025-11-03') + 80 + 70 + 115);
+  });
+
+  it('counts issues per trading day for the chart contract', () => {
+    const result = query(dataset, { contracts: ['ESZ25'] });
+    const total = Object.values(result.issuesByDay).reduce((sum, n) => sum + n, 0);
+    expect(total).toBe(dataset.issues.filter((i) => i.contract === 'ESZ25').length);
   });
 });
 
@@ -121,8 +135,6 @@ describe('pipeline: real sample data', () => {
     expect(result.vwap.length).toBeGreaterThanOrEqual(60);
     expect(result.vwap.length).toBeGreaterThan(0);
     expect(result.vwap.length).toBeLessThanOrEqual(2000);
-    expect(result.issues.length).toBeLessThanOrEqual(1000);
-    expect(result.totalIssues).toBeGreaterThan(result.issues.length);
     expect(dataset.insights.map((i) => i.id)).toContain('gap-spread-ZNH26');
   });
 

@@ -13,6 +13,15 @@ describe('clean', () => {
     expect(clean([later, first, conflict, invalid, other])).toEqual([other, first, later]);
   });
 
+  it('keeps impossible prices and conflicting duplicates when asked, but still drops exact copies', () => {
+    const first = bar({ at: '2025-11-03T09:30' });
+    const exactCopy = { ...first, sourceRow: 998 };
+    const conflict = { ...first, close: 100.5, sourceRow: 999 };
+    const invalid = bar({ at: '2025-11-03T09:32', high: 90 });
+    expect(clean([first, exactCopy, conflict, invalid])).toEqual([first]);
+    expect(clean([first, exactCopy, conflict, invalid], { keepErrorBars: true })).toEqual([first, conflict, invalid]);
+  });
+
   it('blanks out negative volume so it cannot distort VWAP, but keeps the bar', () => {
     const [cleaned] = clean([bar({ volume: -10 })]);
     expect(cleaned?.volume).toBeNull();
