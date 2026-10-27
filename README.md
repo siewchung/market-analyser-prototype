@@ -1,4 +1,4 @@
-# Futures Data Analyser
+# Futures Dashboard
 
 A simple web app that checks historical futures market data for problems and turns it into easy-to-read market views.
 
@@ -9,6 +9,8 @@ It opens on a public sample of 40 futures contracts across 8 markets, already lo
 - **What did the market do?** It shows daily candles and price summaries, and an intraday price chart with a 15-minute average trading price (VWAP).
 
 It's built for the people who use and look after market data: traders, risk managers and analysts.
+
+New to finance? Start with the [beginner's walkthrough](docs/BEGINNERS_GUIDE.md). It follows one contract through all three screens and explains each term as it comes up.
 
 Your files never leave your computer. All the work happens inside your web browser.
 

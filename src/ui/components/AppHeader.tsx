@@ -46,7 +46,7 @@ export function AppHeader({ tab, state, onUpload, onReset }: Props) {
             <rect x="6.5" y="5" width="3" height="10" rx="0.5" />
             <rect x="12" y="1" width="3" height="14" rx="0.5" />
           </svg>
-          Futures DQ
+          Futures Dashboard
         </a>
 
         <nav className="tabs" aria-label="Screens">
