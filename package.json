@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "fetch-sample": "./scripts/fetch-sample.sh",
-    "download-dataset": "node scripts/download-dataset.ts"
+    "download-dataset": "node scripts/download-dataset.ts",
+    "build-quality-report": "node scripts/build-quality-report.ts"
   },
   "keywords": [],
   "author": "",
