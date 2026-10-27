@@ -8,7 +8,10 @@ What it does: `README.md`. How it's built: `docs/ARCHITECTURE.md`. Read those be
 - TypeScript, Vite + React, no backend. Parsing and analysis run in a Web Worker.
 - No DuckDB or other database. Files are small enough to analyse in plain TS, and the logic stays typed and unit-tested.
 - Insights are rule-based (`src/domain/insights/rules.ts`), no AI.
-- One file per analysis. Loading the whole dataset at once was considered and dropped as out of scope.
+- Startup data: daily files for all 40 contracts (committed in `data/daily/`) load at startup. Minute data loads one contract at a time, only when Analytics needs it. All minute data at once peaked at 3.9 GB in a test, so don't load it together.
+- The full-dataset quality report is precomputed by `npm run build-quality-report` and committed as `data/quality-report.json`. Re-run it after changing any quality rule, and bump `QUALITY_REPORT_VERSION`.
+- An uploaded file replaces the active data (never merges). Reset returns to the startup data.
+- The UI follows `docs/Futures DQ Dashboard Mockup.pdf` (Overview, Quality, Analytics). `docs/HANDOFF.md`'s backend design was rejected; don't follow it.
 - It's a prototype. Push back on new infrastructure (state libraries, API layers, databases).
 
 ## Data
