@@ -118,10 +118,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 24px 48px; display: grid
 .type-count { font-weight: 700; text-align: right; }
 
 /* ---------- tables ---------- */
-.table-wrap { overflow-x: auto; }
+/* position: relative keeps visually hidden labels inside the scroll area, so they can't widen the page */
+.table-wrap { overflow-x: auto; position: relative; }
 table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
 th { text-align: left; font-size: 0.82rem; font-weight: 600; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+/* cells holding a 44px button need no extra padding, or the rows get much taller than the text rows */
+td.action { padding-top: 0; padding-bottom: 0; }
 tr:last-child td { border-bottom: none; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .nowrap { white-space: nowrap; }
