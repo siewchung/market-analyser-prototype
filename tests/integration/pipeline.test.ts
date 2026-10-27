@@ -110,6 +110,12 @@ describe('pipeline: exclude bars with errors', async () => {
     expect(volumeOn(off, '2025-11-03')).toBe(volumeOn(on, '2025-11-03') + 80 + 70 + 115);
   });
 
+  it('still treats daily data as daily when the toggle keeps a conflicting duplicate', async () => {
+    const csv = 'Contract,Timestamp,Open,High,Low,Close,Volume\nESZ25,2025-11-03,100,101,99,100,10\nESZ25,2025-11-03,100,101,99,100.5,12\nESZ25,2025-11-04,100,101,99,100,10\n';
+    const daily = load('daily.csv', await parseFile('daily.csv', new TextEncoder().encode(csv).buffer));
+    expect(query(daily, { contracts: ['ESZ25'], excludeErrors: false }).barInterval).toBe('daily');
+  });
+
   it("gives the chart contract's price decimals, so prices line up", () => {
     expect(query(dataset, { contracts: ['ESZ25'] }).chartPriceDecimals).toBe(dataset.summary.priceDecimals.ESZ25);
   });
@@ -124,6 +130,9 @@ describe('pipeline: exclude bars with errors', async () => {
 describe('pipeline: real sample data', () => {
   it('handles the real minute file: no rejections, volume conserved from minute to daily bars', async () => {
     const dataset = await loadFixture('sample-minute.parquet');
+    // No error-level bars, so the "with errors" copy is the same data and must not take extra memory.
+    expect(dataset.barsWithErrors).toBe(dataset.cleanBars);
+    expect(dataset.vwapWithErrors).toBe(dataset.vwap);
     expect(dataset.summary).toMatchObject({ totalRows: 97384, acceptedRows: 97384, rejectedRows: 0, contracts: ['ZNH26'] });
     expect(dataset.summary.issueCounts.duplicate_exact + dataset.summary.issueCounts.invalid_price).toBe(0); // the vendor reports none
 

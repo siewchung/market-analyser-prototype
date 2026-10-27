@@ -24,5 +24,10 @@ export type WorkerResponse =
       readonly report: QualityReport;
       readonly minuteContracts: readonly string[]; // contracts whose minute data is available for Analytics
     }
-  | { readonly type: 'result'; readonly queryId: number; readonly result: QueryResult }
+  | {
+      readonly type: 'result';
+      readonly queryId: number;
+      readonly result: QueryResult;
+      readonly warning: string | null; // e.g. the minute file couldn't be loaded, so these are daily bars
+    }
   | { readonly type: 'error'; readonly message: string };

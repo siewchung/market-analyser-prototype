@@ -4,7 +4,7 @@ import { buildQualityReport, QUALITY_REPORT_VERSION, toFileAnalysis, type Qualit
 import { DEFAULT_CONFIG } from '../../domain/config';
 import { parseFile } from '../parsers';
 import type { DataOrigin, WorkerRequest, WorkerResponse } from './protocol';
-import { buildStartupSources, createSerialQueue, type DataFile } from './sources';
+import { buildStartupSources, createSerialQueue, withFallback, type DataFile } from './sources';
 
 /**
  * Background worker: does the downloading, parsing and number-crunching off the main thread so the page never freezes.
@@ -70,17 +70,23 @@ function sendReady(origin: DataOrigin, fileName: string | null): void {
   send({ type: 'ready', origin, fileName, report: active.report, minuteContracts });
 }
 
-/** Picks the data to answer a query from: the contract's minute data if there is any, otherwise the daily data. */
-async function datasetFor(contract: string | undefined): Promise<Dataset> {
+/**
+ * Picks the data to answer a query from: the contract's minute data if there is any, otherwise the daily data.
+ * If the minute file can't be loaded, the daily data is used and `warning` says why, so the screen always shows
+ * the contract the user picked.
+ */
+async function datasetFor(contract: string | undefined): Promise<{ readonly dataset: Dataset; readonly warning: string | null }> {
   if (!active) throw new Error('No data has been loaded yet.');
-  if (active.origin === 'uploaded') return active.dataset;
+  if (active.origin === 'uploaded') return { dataset: active.dataset, warning: null };
   const minuteFile = contract ? sources.minuteByContract.get(contract) : undefined;
-  if (!minuteFile) return active.daily;
-  if (minuteCache?.contract !== minuteFile.contract) {
-    minuteCache = null; // let the previous contract's bars be freed before loading the next one
-    minuteCache = { contract: minuteFile.contract, dataset: load(`${minuteFile.contract} minute`, await fetchAndParse(minuteFile)) };
-  }
-  return minuteCache.dataset;
+  if (!minuteFile) return { dataset: active.daily, warning: null };
+  if (minuteCache?.contract === minuteFile.contract) return { dataset: minuteCache.dataset, warning: null };
+
+  minuteCache = null; // let the previous contract's bars be freed before loading the next one
+  const { value, failure } = await withFallback(async () => load(`${minuteFile.contract} minute`, await fetchAndParse(minuteFile)), null);
+  if (!value) return { dataset: active.daily, warning: `Couldn't load minute data for ${minuteFile.contract} (${failure}). Showing daily bars.` };
+  minuteCache = { contract: minuteFile.contract, dataset: value };
+  return { dataset: value, warning: null };
 }
 
 worker.onmessage = (event: MessageEvent<WorkerRequest>) => {
@@ -97,8 +103,8 @@ worker.onmessage = (event: MessageEvent<WorkerRequest>) => {
           loadUpload(request.fileName, load(request.fileName, await parseFile(request.fileName, request.bytes)));
           return;
         case 'query': {
-          const dataset = await datasetFor(request.filter.contracts[0]);
-          send({ type: 'result', queryId: request.queryId, result: query(dataset, request.filter, request.view) });
+          const { dataset, warning } = await datasetFor(request.filter.contracts[0]);
+          send({ type: 'result', queryId: request.queryId, result: query(dataset, request.filter, request.view), warning });
           return;
         }
         default: {

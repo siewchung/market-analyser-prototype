@@ -59,7 +59,11 @@ export function load(fileName: string, file: ParsedFile, config: AnalysisConfig 
     (a, b) => SEVERITY_ORDER.indexOf(SEVERITY[a.kind]) - SEVERITY_ORDER.indexOf(SEVERITY[b.kind]) || a.timestamp - b.timestamp,
   );
   const cleanBars = clean(bars);
-  const barsWithErrors = clean(bars, { keepErrorBars: true });
+  const vwap = rollingVwap(cleanBars, config.vwapWindowMinutes);
+  // Bars with errors are kept only for the "Exclude bars with errors" toggle. Most files have none,
+  // so the extra copy is only made when there's something different to show (it can be hundreds of MB).
+  const hasErrorBars = issues.some((i) => SEVERITY[i.kind] === 'error');
+  const barsWithErrors = hasErrorBars ? clean(bars, { keepErrorBars: true }) : cleanBars;
 
   // Start every issue kind at zero so the dashboard can show "0 duplicates" rather than leaving it out.
   const issueCounts = Object.fromEntries(Object.keys(SEVERITY).map((kind) => [kind, 0])) as Record<IssueKind, number>;
@@ -86,9 +90,9 @@ export function load(fileName: string, file: ParsedFile, config: AnalysisConfig 
     rejected,
     issues,
     cleanBars,
-    vwap: rollingVwap(cleanBars, config.vwapWindowMinutes),
+    vwap,
     barsWithErrors,
-    vwapWithErrors: rollingVwap(barsWithErrors, config.vwapWindowMinutes),
+    vwapWithErrors: hasErrorBars ? rollingVwap(barsWithErrors, config.vwapWindowMinutes) : vwap,
     config,
   };
 }
@@ -108,8 +112,9 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
   // and months of minute data squeezed into one chart would hide it completely.
   // Chart, daily data: show every day, because a single day would be just one point.
   const contractPoints = allPoints.filter((p) => p.contract === chartContract && matchesFilter(filter, p.contract, p.tradingDate));
-  // Judged on the contract's whole history, so a narrow date filter can't make minute data look daily.
-  const barInterval = detectBarInterval(allPoints.filter((p) => p.contract === chartContract));
+  // Judged on the contract's whole, cleaned history, so neither a narrow date filter nor a kept duplicate
+  // (with "Exclude bars with errors" off) can make daily data look intraday or the other way round.
+  const barInterval = detectBarInterval(dataset.vwap.filter((p) => p.contract === chartContract));
   const { day, mode } = barInterval === 'daily' ? wholeHistory(filter) : chooseChartDay(contractPoints, filter, view);
   const vwap = day ? contractPoints.filter((p) => p.tradingDate === day) : contractPoints;
   const first = vwap[0];

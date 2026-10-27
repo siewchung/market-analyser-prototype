@@ -22,7 +22,7 @@ import type { Dataset } from './analyse';
  */
 
 /** Bump this whenever the report's shape or the quality rules change, then re-run `npm run build-quality-report`. */
-export const QUALITY_REPORT_VERSION = 1;
+export const QUALITY_REPORT_VERSION = 2;
 /** The full issue list can run to hundreds of thousands of rows, so the report keeps a sample of each severity. */
 export const ISSUE_SAMPLE_PER_SEVERITY = 200;
 export const REJECTED_SAMPLE_SIZE = 200;
@@ -55,7 +55,8 @@ export interface ReportContract {
   readonly intervals: readonly BarInterval[]; // 'intraday' before 'daily'
   readonly firstDate: string;
   readonly lastDate: string;
-  readonly bars: number;
+  readonly bars: number; // all files added together (minute + daily)
+  readonly barsByInterval: Readonly<Record<BarInterval, number>>; // the same, split by kind of file
   readonly errors: number;
   readonly warnings: number;
   readonly info: number;
@@ -133,6 +134,7 @@ export function buildQualityReport(files: readonly FileAnalysis[], config: Analy
           firstDate: health.firstDate,
           lastDate: health.lastDate,
           bars: health.bars,
+          barsByInterval: { intraday: 0, daily: 0, [file.interval]: health.bars },
           errors: health.errors,
           warnings: health.warnings,
           info: health.info,
@@ -143,6 +145,7 @@ export function buildQualityReport(files: readonly FileAnalysis[], config: Analy
       if (health.firstDate < existing.firstDate) existing.firstDate = health.firstDate;
       if (health.lastDate > existing.lastDate) existing.lastDate = health.lastDate;
       existing.bars += health.bars;
+      existing.barsByInterval = { ...existing.barsByInterval, [file.interval]: existing.barsByInterval[file.interval] + health.bars };
       existing.errors += health.errors;
       existing.warnings += health.warnings;
       existing.info += health.info;

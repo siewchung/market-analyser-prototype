@@ -138,7 +138,8 @@ export function OverviewScreen({ state, onOpenQuality, onOpenAnalytics }: Props)
                   <td className="nowrap">{c.intervals.map((i) => INTERVAL_LABELS[i]).join(', ')}</td>
                   <td className="nowrap">{c.firstDate}</td>
                   <td className="nowrap">{c.lastDate}</td>
-                  <td className="num">{formatNumber(c.bars)}</td>
+                  {/* Minute bars when the contract has them; adding minute and daily rows together would mean nothing. */}
+                  <td className="num">{formatNumber(c.barsByInterval.intraday > 0 ? c.barsByInterval.intraday : c.barsByInterval.daily)}</td>
                   <td className="num">{formatNumber(issueTotal(c))}</td>
                   <td className="num action">
                     <button type="button" className="link-button" onClick={() => onOpenAnalytics(c.contract)}>

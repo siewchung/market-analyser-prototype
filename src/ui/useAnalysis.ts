@@ -87,7 +87,10 @@ export function useAnalysis(): {
         }
         case 'result':
           if (response.queryId !== latestQueryId.current) return; // an answer to a query the user has moved on from
-          setState((previous) => (previous.status === 'ready' ? { ...previous, result: response.result, pending: false } : previous));
+          // A fresh answer replaces any earlier message: it either carries its own warning or none.
+          setState((previous) =>
+            previous.status === 'ready' ? { ...previous, result: response.result, pending: false, error: response.warning } : previous,
+          );
           return;
         case 'error':
           // Keep showing the current data if there is any; only a failed startup leaves nothing to show.

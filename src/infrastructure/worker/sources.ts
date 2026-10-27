@@ -43,3 +43,16 @@ export function createSerialQueue(): <T>(job: () => Promise<T>) => Promise<T> {
     return next;
   };
 }
+
+/**
+ * Tries to load something, and if that fails, uses a fallback instead and says why.
+ * The worker uses this so that a minute file that can't be downloaded shows the contract's daily data with a
+ * message, rather than leaving the previous contract's charts on screen.
+ */
+export async function withFallback<T>(load: () => Promise<T>, fallback: T): Promise<{ readonly value: T; readonly failure: string | null }> {
+  try {
+    return { value: await load(), failure: null };
+  } catch (error) {
+    return { value: fallback, failure: error instanceof Error ? error.message : String(error) };
+  }
+}

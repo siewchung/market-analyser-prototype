@@ -39,6 +39,7 @@ describe('buildQualityReport', async () => {
     expect(report.totalRows).toBe(znMinute.summary.totalRows + znDaily.summary.totalRows);
     expect(report.contracts).toHaveLength(1);
     expect(report.contracts[0]).toMatchObject({ root: 'ZN', intervals: ['intraday', 'daily'] });
+    expect(report.contracts[0]?.barsByInterval).toEqual({ intraday: znMinute.summary.acceptedRows, daily: znDaily.summary.acceptedRows });
     expect(report.roots).toEqual(['ZN']);
   });
 

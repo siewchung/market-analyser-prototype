@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildStartupSources, createSerialQueue } from '../../../src/infrastructure/worker/sources';
+import { buildStartupSources, createSerialQueue, withFallback } from '../../../src/infrastructure/worker/sources';
 
 describe('buildStartupSources', () => {
   it('maps file paths to contracts', () => {
@@ -40,5 +40,18 @@ describe('createSerialQueue', () => {
     });
     await expect(failed).rejects.toThrow('boom');
     await expect(enqueue(async () => 'next')).resolves.toBe('next');
+  });
+});
+
+describe('withFallback', () => {
+  it('uses the main value when it loads', async () => {
+    expect(await withFallback(async () => 'minute', 'daily')).toEqual({ value: 'minute', failure: null });
+  });
+
+  it('falls back and explains why when the main value fails to load', async () => {
+    const result = await withFallback(async () => {
+      throw new Error('HTTP 404');
+    }, 'daily');
+    expect(result).toEqual({ value: 'daily', failure: 'HTTP 404' });
   });
 });
