@@ -44,8 +44,8 @@ describe('pipeline: dirty.csv', async () => {
 
   it('breaks quality down by contract', () => {
     expect(dataset.summary.byContract).toEqual([
-      { contract: 'CLZ25', bars: 4, usableBars: 4, errors: 0, warnings: 1, info: 0 },
-      { contract: 'ESZ25', bars: 18, usableBars: 14, errors: 3, warnings: 10, info: 1 },
+      { contract: 'CLZ25', firstDate: '2025-11-03', lastDate: '2025-11-04', bars: 4, usableBars: 4, errors: 0, warnings: 1, info: 0 },
+      { contract: 'ESZ25', firstDate: '2025-11-03', lastDate: '2025-11-04', bars: 18, usableBars: 14, errors: 3, warnings: 10, info: 1 },
     ]);
   });
 

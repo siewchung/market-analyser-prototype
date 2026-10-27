@@ -45,16 +45,23 @@ export function assessHealth(summary: LoadSummary): HealthVerdict {
 
 /** Per-contract counts, sorted by contract. `bars` are all readable bars; `cleanBars` are those left after cleaning. */
 export function contractHealth(bars: readonly Bar[], cleanBars: readonly Bar[], issues: readonly QualityIssue[]): ContractHealth[] {
-  const rows = new Map<string, { contract: string; bars: number; usableBars: number; errors: number; warnings: number; info: number }>();
+  type Row = { contract: string; firstDate: string; lastDate: string; bars: number; usableBars: number; errors: number; warnings: number; info: number };
+  const rows = new Map<string, Row>();
   const row = (contract: string) => {
     const existing = rows.get(contract);
     if (existing) return existing;
-    const created = { contract, bars: 0, usableBars: 0, errors: 0, warnings: 0, info: 0 };
+    const created: Row = { contract, firstDate: '', lastDate: '', bars: 0, usableBars: 0, errors: 0, warnings: 0, info: 0 };
     rows.set(contract, created);
     return created;
   };
 
-  for (const b of bars) row(b.contract).bars++;
+  for (const b of bars) {
+    const target = row(b.contract);
+    target.bars++;
+    // "YYYY-MM-DD" strings sort the same way as the dates they stand for, so plain comparison works.
+    if (target.firstDate === '' || b.tradingDate < target.firstDate) target.firstDate = b.tradingDate;
+    if (b.tradingDate > target.lastDate) target.lastDate = b.tradingDate;
+  }
   for (const b of cleanBars) row(b.contract).usableBars++;
   for (const issue of issues) {
     const severity = SEVERITY[issue.kind];

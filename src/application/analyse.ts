@@ -77,7 +77,8 @@ export function load(fileName: string, file: ParsedFile, config: AnalysisConfig 
 
   return {
     summary,
-    insights: generateInsights({ bars, rejected, issues, config }),
+    // Insights only need each contract's bar count, not the bars themselves.
+    insights: generateInsights({ barsPerContract: new Map(summary.byContract.map((c) => [c.contract, c.bars])), rejected, issues, config }),
     rejected,
     issues,
     cleanBars,

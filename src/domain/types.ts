@@ -120,6 +120,8 @@ export interface AnalysisConfig {
 /** Quality at a glance for one contract, so users can see which contracts are fine and which aren't. */
 export interface ContractHealth {
   readonly contract: string;
+  readonly firstDate: string; // first trading day with a readable bar, "YYYY-MM-DD"
+  readonly lastDate: string; // last trading day with a readable bar
   readonly bars: number; // readable bars for this contract
   readonly usableBars: number; // bars left after cleaning
   readonly errors: number;
