@@ -130,6 +130,7 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
     chartRange: first && last ? { from: first.tradingDate, to: last.tradingDate, mode } : null,
     chartDays: [...new Set(contractPoints.map((p) => p.tradingDate))],
     vwap: downsample(vwap, config.maxChartPoints),
+    chartPriceDecimals: (chartContract ? dataset.summary.priceDecimals[chartContract] : undefined) ?? 2,
     issuesByDay,
   };
 }

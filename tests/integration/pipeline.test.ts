@@ -110,6 +110,10 @@ describe('pipeline: exclude bars with errors', async () => {
     expect(volumeOn(off, '2025-11-03')).toBe(volumeOn(on, '2025-11-03') + 80 + 70 + 115);
   });
 
+  it("gives the chart contract's price decimals, so prices line up", () => {
+    expect(query(dataset, { contracts: ['ESZ25'] }).chartPriceDecimals).toBe(dataset.summary.priceDecimals.ESZ25);
+  });
+
   it('counts issues per trading day for the chart contract', () => {
     const result = query(dataset, { contracts: ['ESZ25'] });
     const total = Object.values(result.issuesByDay).reduce((sum, n) => sum + n, 0);

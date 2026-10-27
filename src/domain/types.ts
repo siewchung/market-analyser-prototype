@@ -172,5 +172,6 @@ export interface QueryResult {
   readonly chartRange: { readonly from: string; readonly to: string; readonly mode: ChartMode } | null;
   readonly chartDays: readonly string[]; // every trading day the chart contract has data for (within the date filter), oldest first
   readonly vwap: readonly VwapPoint[]; // for chartContract and chartRange only, downsampled for the chart
+  readonly chartPriceDecimals: number; // decimal places for chartContract's prices, so a column of prices lines up
   readonly issuesByDay: Readonly<Record<string, number>>; // chartContract's issue count per trading day, for the daily bars table
 }
