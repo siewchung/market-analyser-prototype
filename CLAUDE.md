@@ -11,7 +11,7 @@ What it does: `README.md`. How it's built: `docs/ARCHITECTURE.md`. Read those be
 - Startup data: daily files for all 40 contracts (committed in `data/daily/`) load at startup. Minute data loads one contract at a time, only when Analytics needs it. All minute data at once peaked at 3.9 GB in a test, so don't load it together.
 - The full-dataset quality report is precomputed by `npm run build-quality-report` and committed as `data/quality-report.json`. Re-run it after changing any quality rule, and bump `QUALITY_REPORT_VERSION`.
 - An uploaded file replaces the active data (never merges). Reset returns to the startup data.
-- The UI follows `docs/Futures DQ Dashboard Mockup.pdf` (Overview, Quality, Analytics). `docs/HANDOFF.md`'s backend design was rejected; don't follow it.
+- The UI follows `docs/Futures DQ Dashboard Mockup.pdf` (Overview, Quality, Analytics). An earlier Fastify backend design was rejected; don't reintroduce it.
 - It's a prototype. Push back on new infrastructure (state libraries, API layers, databases).
 
 ## Data
