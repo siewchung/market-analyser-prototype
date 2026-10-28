@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Futures data quality and analytics prototype for a coding exercise (brief in `docs/`).
+Futures data quality and analytics prototype for a coding exercise.
 What it does: `README.md`. How it's built: `docs/ARCHITECTURE.md`. Read those before changing behaviour.
 
 ## Decisions already made (don't relitigate without asking)
