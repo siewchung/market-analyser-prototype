@@ -3,7 +3,7 @@ import type { ReportIssue } from '../../application/qualityReport';
 import { ISSUE_LABELS, SEVERITY } from '../../domain/config';
 import type { Severity } from '../../domain/types';
 import { formatNumber } from '../format';
-import { describeIssue, formatIssueTime } from '../issueText';
+import { describeIssue, formatIssueTime, formatSourceRows } from '../issueText';
 
 type SeverityFilter = 'all' | Severity;
 
@@ -52,6 +52,10 @@ export function IssueLog({ sample, severityCounts }: Props) {
                 <th>Type</th>
                 <th>Contract</th>
                 <th>Time (Chicago)</th>
+                {/* Hovering the header explains how rows are counted, so a Parquet user isn't off by one. */}
+                <th title="CSV: the line number in Excel (line 1 is the header). Parquet: the first data row is row 1 (pandas counts from 0).">
+                  Row in file
+                </th>
                 <th>Detail</th>
               </tr>
             </thead>
@@ -64,6 +68,7 @@ export function IssueLog({ sample, severityCounts }: Props) {
                   <td className="nowrap">{ISSUE_LABELS[issue.kind]}</td>
                   <td>{issue.contract}</td>
                   <td className="nowrap">{formatIssueTime(issue.timestamp, interval)}</td>
+                  <td className="nowrap">{formatSourceRows(issue.sourceRows)}</td>
                   <td>{describeIssue(issue)}</td>
                 </tr>
               ))}

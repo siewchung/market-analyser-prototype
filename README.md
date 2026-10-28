@@ -147,7 +147,7 @@ Switch screens with the tabs at the top.
 | **Counters** | Records read, accepted, rejected and issues found. Click **Rejected** to see the rows that couldn't be read, and why. |
 | **Issues by type** | How many of each kind of problem, coloured by how serious it is. |
 | **Insights** | The most useful part. Instead of thousands of individual warnings, it explains the patterns behind them and suggests a rule for each. |
-| **Issue log** | Individual problems, filtered by **Errors**, **Warnings** or **Info**. It shows a sample (up to 200 of each severity) and says how many there are in total. |
+| **Issue log** | Individual problems, filtered by **Errors**, **Warnings** or **Info**, with the row in the file each one came from (for a CSV, the line number in Excel). It shows a sample (up to 200 of each severity) and says how many there are in total. |
 
 **Analytics: what did the market do?**
 

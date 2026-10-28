@@ -24,6 +24,15 @@ export function describeIssue(issue: QualityIssue): string {
 }
 
 /**
+ * Which rows of the file an issue came from, as "8" or "4, 5" (a duplicate names both copies).
+ * The numbers are set when the file is read: for a CSV they match the line numbers in Excel,
+ * for a Parquet file the first data row is row 1.
+ */
+export function formatSourceRows(sourceRows: readonly number[]): string {
+  return sourceRows.map((row) => formatNumber(row)).join(', ');
+}
+
+/**
  * When an issue happened, as "2025-03-12 09:31" (Chicago wall-clock time).
  * Daily bars are date labels with no time of day, so they show the date only.
  */
