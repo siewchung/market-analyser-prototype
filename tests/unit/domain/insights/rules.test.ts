@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../../../../src/domain/config';
 import { generateInsights, type InsightContext } from '../../../../src/domain/insights/rules';
 import type { QualityIssue, RejectedRow } from '../../../../src/domain/types';
-import { bar, wall } from '../../../helpers';
+import { wall } from '../../../helpers';
 
 const context = (overrides: Partial<InsightContext>): InsightContext => ({
-  bars: [bar()],
+  barsPerContract: new Map([['ESZ25', 1]]),
   rejected: [],
   issues: [],
   config: DEFAULT_CONFIG,
@@ -92,15 +92,15 @@ describe('generateInsights', () => {
   });
 
   it('flags contracts dominated by flat zero-volume bars', () => {
-    const bars = [bar(), bar(), bar(), bar()];
+    const barsPerContract = new Map([['ESZ25', 4]]);
     const issues = [issue('no_range_zero_volume'), issue('no_range_zero_volume')];
-    const insight = generateInsights(context({ bars, issues })).find((i) => i.id === 'no_range_zero_volume-ESZ25');
+    const insight = generateInsights(context({ barsPerContract, issues })).find((i) => i.id === 'no_range_zero_volume-ESZ25');
     expect(insight).toMatchObject({ severity: 'info', evidence: { share: 0.5 } });
   });
 
   it('ignores a few flat zero-volume bars in an otherwise busy contract', () => {
-    const bars = Array.from({ length: 100 }, () => bar());
-    expect(ids(context({ bars, issues: [issue('no_range_zero_volume')] }))).toEqual([]);
+    const barsPerContract = new Map([['ESZ25', 100]]);
+    expect(ids(context({ barsPerContract, issues: [issue('no_range_zero_volume')] }))).toEqual([]);
   });
 
   it('explains when price jumps mostly come straight after data gaps', () => {

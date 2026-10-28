@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { priceDecimals } from '../../../src/domain/bars';
+import { fileInterval, priceDecimals, rootOf } from '../../../src/domain/bars';
 import { bar } from '../../helpers';
 
 describe('priceDecimals', () => {
@@ -14,5 +14,27 @@ describe('priceDecimals', () => {
 
   it('caps the number of decimals', () => {
     expect(priceDecimals([bar({ open: 1.123456789, high: 2, low: 1, close: 1 })])).toEqual({ ESZ25: 6 });
+  });
+});
+
+describe('rootOf', () => {
+  it('strips the month code and two-digit year from a contract symbol', () => {
+    expect(rootOf('ESZ25')).toBe('ES');
+    expect(rootOf('SR3M26')).toBe('SR3');
+    expect(rootOf('VXX25')).toBe('VX');
+  });
+
+  it('returns the symbol unchanged when it has no month code and year', () => {
+    expect(rootOf('WEIRD')).toBe('WEIRD');
+  });
+});
+
+describe('fileInterval', () => {
+  it('is daily when every contract has at most one bar per trading day', () => {
+    expect(fileInterval([bar({ at: '2025-11-03T09:30' }), bar({ at: '2025-11-04T09:30' })])).toBe('daily');
+  });
+
+  it('is intraday when a contract has several bars on one trading day', () => {
+    expect(fileInterval([bar({ at: '2025-11-03T09:30' }), bar({ at: '2025-11-03T09:31' })])).toBe('intraday');
   });
 });

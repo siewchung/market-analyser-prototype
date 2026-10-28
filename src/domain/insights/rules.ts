@@ -1,6 +1,6 @@
 import { REASON_LABELS, SEVERITY } from '../config';
 import { hourOfDay } from '../time';
-import type { AnalysisConfig, Bar, Insight, QualityIssue, RejectedRow, RejectReason, Severity } from '../types';
+import type { AnalysisConfig, Insight, QualityIssue, RejectedRow, RejectReason, Severity } from '../types';
 
 /**
  * Rule-based "intelligent insights".
@@ -9,7 +9,7 @@ import type { AnalysisConfig, Bar, Insight, QualityIssue, RejectedRow, RejectRea
  */
 
 export interface InsightContext {
-  readonly bars: readonly Bar[]; // every accepted bar, before cleaning
+  readonly barsPerContract: ReadonlyMap<string, number>; // how many accepted bars each contract has, before cleaning
   readonly rejected: readonly RejectedRow[];
   readonly issues: readonly QualityIssue[];
   readonly config: AnalysisConfig;
@@ -221,8 +221,7 @@ const gaps: InsightRule = ({ issues, config }) => {
   return insights;
 };
 
-const settlementStyleBars: InsightRule = ({ bars, issues }) => {
-  const barsPerContract = countBy(bars, (b) => b.contract);
+const settlementStyleBars: InsightRule = ({ barsPerContract, issues }) => {
   return [...countBy(ofKind(issues, 'no_range_zero_volume'), (i) => i.contract)]
     .map(([contract, count]) => ({ contract, count, share: count / (barsPerContract.get(contract) ?? count) }))
     .filter(({ share }) => share >= SETTLEMENT_SHARE)

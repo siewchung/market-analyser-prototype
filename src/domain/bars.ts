@@ -1,4 +1,4 @@
-import type { Bar } from './types';
+import type { Bar, BarInterval } from './types';
 
 /** Groups bars by contract, keeping the original order within each group. */
 export function groupByContract(bars: readonly Bar[]): Map<string, Bar[]> {
@@ -32,4 +32,27 @@ export function priceDecimals(bars: readonly Bar[]): Record<string, number> {
     result[b.contract] = Math.min(MAX_PRICE_DECIMALS, Math.max(result[b.contract] ?? 0, places));
   }
   return result;
+}
+
+/**
+ * The product root of a contract symbol, e.g. "ESZ25" -> "ES", "SR3M26" -> "SR3".
+ * Futures symbols end in a one-letter delivery month code (F = Jan ... Z = Dec) and a two-digit year.
+ * A symbol that doesn't follow that pattern is returned unchanged.
+ */
+export function rootOf(contract: string): string {
+  return /^(.+)[FGHJKMNQUVXZ]\d{2}$/.exec(contract)?.[1] ?? contract;
+}
+
+/**
+ * Whether a whole file holds daily bars or intraday (e.g. minute) bars.
+ * Daily files have at most one bar per contract per trading day; anything with more is intraday.
+ */
+export function fileInterval(bars: readonly Bar[]): BarInterval {
+  const seen = new Set<string>();
+  for (const b of bars) {
+    const key = `${b.contract}|${b.tradingDate}`;
+    if (seen.has(key)) return 'intraday';
+    seen.add(key);
+  }
+  return 'daily';
 }

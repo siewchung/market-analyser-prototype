@@ -9,22 +9,20 @@ import { generateInsights } from '../domain/insights/rules';
 import { normalise } from '../domain/normalise';
 import { runChecks } from '../domain/quality/checks';
 import { clean } from '../domain/quality/clean';
-import { toDateString } from '../domain/time';
+import { tradingDateFor } from '../domain/time';
 import type {
   AnalysisConfig,
   Bar,
   BarInterval,
-  ChartMode,
+  DailyBar,
   Filter,
   Insight,
   IssueKind,
   LoadSummary,
   ParsedFile,
   QualityIssue,
-  QueryResult,
   RejectedRow,
   Severity,
-  ViewOptions,
   VwapPoint,
 } from '../domain/types';
 
@@ -44,8 +42,45 @@ export interface Dataset {
   readonly issues: readonly QualityIssue[]; // most serious first
   readonly cleanBars: readonly Bar[];
   readonly vwap: readonly VwapPoint[]; // computed on the full history so the window is right at the edge of any date filter
+  // The same two, but keeping bars with error-level issues, for when the user turns off "Exclude bars with errors".
+  readonly barsWithErrors: readonly Bar[];
+  readonly vwapWithErrors: readonly VwapPoint[];
   readonly config: AnalysisConfig;
 }
+
+/**
+ * How the chart's dates were chosen: a day the user stepped to, the user's date filter, the default single-day view
+ * (minute data), or the whole file (daily data, where one day is only a single point).
+ */
+export type ChartMode = 'chosen_day' | 'filtered' | 'latest_active_day' | 'latest_day' | 'whole_history';
+
+/**
+ * View-only choices that don't change the data being analysed, unlike Filter.
+ * Kept separate so that, for example, stepping the chart through days doesn't shrink the daily bars table.
+ */
+export interface ViewOptions {
+  readonly chartDay?: string; // "YYYY-MM-DD": show this single day on the chart
+}
+
+/** Everything the Analytics screen needs for the current filter. Shaped for the screen, which is why it lives here and not in the domain. */
+export interface QueryResult {
+  readonly daily: readonly DailyBar[];
+  readonly chartContract: string | null; // the chart shows one contract at a time
+  readonly barInterval: BarInterval; // daily data is charted differently: whole history, and no VWAP line
+  // Dates the chart covers, and why. With no date filter, minute data shows a single day, because a 15-minute VWAP
+  // is only meaningful at intraday zoom: the latest day with at least an hour of trading, or failing that the latest day.
+  // Daily data shows every day in the file instead, so the price movement is visible.
+  readonly chartRange: { readonly from: string; readonly to: string; readonly mode: ChartMode } | null;
+  readonly chartDays: readonly string[]; // every trading day the chart contract has data for (within the date filter), oldest first
+  readonly vwap: readonly VwapPoint[]; // for chartContract and chartRange only, downsampled for the chart
+  // The VWAP window the numbers were worked out with, so the chart's title always matches the data behind it.
+  readonly vwapWindowMinutes: number;
+  readonly chartPriceDecimals: number; // decimal places for chartContract's prices, so a column of prices lines up
+  readonly issuesByDay: Readonly<Record<string, number>>; // chartContract's issue count per trading day, for the daily bars table
+}
+
+/** Charts can't usefully show more points than this and get slow trying, so longer series are thinned out. */
+const MAX_CHART_POINTS = 2000;
 
 const SEVERITY_ORDER: readonly Severity[] = ['error', 'warning', 'info'];
 
@@ -56,6 +91,11 @@ export function load(fileName: string, file: ParsedFile, config: AnalysisConfig 
     (a, b) => SEVERITY_ORDER.indexOf(SEVERITY[a.kind]) - SEVERITY_ORDER.indexOf(SEVERITY[b.kind]) || a.timestamp - b.timestamp,
   );
   const cleanBars = clean(bars);
+  const vwap = rollingVwap(cleanBars, config.vwapWindowMinutes);
+  // Bars with errors are kept only for the "Exclude bars with errors" toggle. Most files have none,
+  // so the extra copy is only made when there's something different to show (it can be hundreds of MB).
+  const hasErrorBars = issues.some((i) => SEVERITY[i.kind] === 'error');
+  const barsWithErrors = hasErrorBars ? clean(bars, { keepErrorBars: true }) : cleanBars;
 
   // Start every issue kind at zero so the dashboard can show "0 duplicates" rather than leaving it out.
   const issueCounts = Object.fromEntries(Object.keys(SEVERITY).map((kind) => [kind, 0])) as Record<IssueKind, number>;
@@ -77,11 +117,14 @@ export function load(fileName: string, file: ParsedFile, config: AnalysisConfig 
 
   return {
     summary,
-    insights: generateInsights({ bars, rejected, issues, config }),
+    // Insights only need each contract's bar count, not the bars themselves.
+    insights: generateInsights({ barsPerContract: new Map(summary.byContract.map((c) => [c.contract, c.bars])), rejected, issues, config }),
     rejected,
     issues,
     cleanBars,
-    vwap: rollingVwap(cleanBars, config.vwapWindowMinutes),
+    vwap,
+    barsWithErrors,
+    vwapWithErrors: hasErrorBars ? rollingVwap(barsWithErrors, config.vwapWindowMinutes) : vwap,
     config,
   };
 }
@@ -90,24 +133,32 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
   const { config } = dataset;
   const chartContract = filter.contracts[0] ?? dataset.summary.contracts[0] ?? null;
 
-  const daily = dailyBars(dataset.cleanBars.filter((b) => matchesFilter(filter, b.contract, b.tradingDate)));
+  // "Exclude bars with errors" is on unless the user turned it off.
+  const excludeErrors = filter.excludeErrors ?? true;
+  const bars = excludeErrors ? dataset.cleanBars : dataset.barsWithErrors;
+  const allPoints = excludeErrors ? dataset.vwap : dataset.vwapWithErrors;
+
+  const daily = dailyBars(bars.filter((b) => matchesFilter(filter, b.contract, b.tradingDate)));
 
   // Chart, minute data: show a single day unless the user set a date range. A 15-minute VWAP is an intraday measure,
   // and months of minute data squeezed into one chart would hide it completely.
   // Chart, daily data: show every day, because a single day would be just one point.
-  const contractPoints = dataset.vwap.filter((p) => p.contract === chartContract && matchesFilter(filter, p.contract, p.tradingDate));
-  // Judged on the contract's whole history, so a narrow date filter can't make minute data look daily.
+  const contractPoints = allPoints.filter((p) => p.contract === chartContract && matchesFilter(filter, p.contract, p.tradingDate));
+  // Judged on the contract's whole, cleaned history, so neither a narrow date filter nor a kept duplicate
+  // (with "Exclude bars with errors" off) can make daily data look intraday or the other way round.
   const barInterval = detectBarInterval(dataset.vwap.filter((p) => p.contract === chartContract));
   const { day, mode } = barInterval === 'daily' ? wholeHistory(filter) : chooseChartDay(contractPoints, filter, view);
   const vwap = day ? contractPoints.filter((p) => p.tradingDate === day) : contractPoints;
   const first = vwap[0];
   const last = vwap.at(-1);
 
-  // Issue log: the date/contract filter first, then the optional issue-type choice, then the display cap.
-  const inView = dataset.issues.filter((i) => matchesFilter(filter, i.contract, toDateString(i.timestamp)));
-  const issueCountsInView = Object.fromEntries(Object.keys(SEVERITY).map((kind) => [kind, 0])) as Record<IssueKind, number>;
-  for (const issue of inView) issueCountsInView[issue.kind]++;
-  const issues = view.issueKind ? inView.filter((i) => i.kind === view.issueKind) : inView;
+  // Issues per trading day for the chart contract, shown in the daily bars table.
+  const issuesByDay: Record<string, number> = {};
+  for (const issue of dataset.issues) {
+    if (issue.contract !== chartContract) continue;
+    const day = tradingDateFor(issue.timestamp, config.sessionBreak);
+    issuesByDay[day] = (issuesByDay[day] ?? 0) + 1;
+  }
 
   return {
     daily,
@@ -115,10 +166,10 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
     barInterval,
     chartRange: first && last ? { from: first.tradingDate, to: last.tradingDate, mode } : null,
     chartDays: [...new Set(contractPoints.map((p) => p.tradingDate))],
-    vwap: downsample(vwap, config.maxChartPoints),
-    issues: issues.slice(0, config.maxIssueRows),
-    totalIssues: issues.length,
-    issueCountsInView,
+    vwap: downsample(vwap, MAX_CHART_POINTS),
+    vwapWindowMinutes: config.vwapWindowMinutes,
+    chartPriceDecimals: (chartContract ? dataset.summary.priceDecimals[chartContract] : undefined) ?? 2,
+    issuesByDay,
   };
 }
 

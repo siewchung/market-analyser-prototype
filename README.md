@@ -1,16 +1,18 @@
-# Futures Data Analyser
+# Futures Dashboard
 
 A simple web app that checks historical futures market data for problems and turns it into easy-to-read market views.
 
-You give it a data file. It tells you:
+It opens on a public sample of 40 futures contracts across 8 markets, already loaded. You can also upload your own file. It tells you:
 
-- **Can I trust this data?** It gives a clear verdict, then shows exactly what's wrong: missing data, duplicates, impossible prices and other errors.
+- **Can I trust this data?** It shows how much of the data is usable, then exactly what's wrong: missing data, duplicates, impossible prices and other errors.
 - **Why is it wrong, and what should we do about it?** It spots recurring patterns and suggests a rule to fix or prevent each one.
-- **What did the market do?** It shows daily price summaries and an intraday price chart with a 15-minute average trading price (VWAP).
+- **What did the market do?** It shows daily candles and price summaries, and an intraday price chart with a 15-minute average trading price (VWAP).
 
 It's built for the people who use and look after market data: traders, risk managers and analysts.
 
-Your file never leaves your computer. All the work happens inside your web browser.
+New to finance? Start with the [beginner's walkthrough](docs/BEGINNERS_GUIDE.md). It follows one contract through all three screens and explains each term as it comes up.
+
+Your files never leave your computer. All the work happens inside your web browser.
 
 > This is a prototype built for a coding exercise (brief in [`docs/`](docs/)). It's deliberately simple.
 
@@ -18,7 +20,7 @@ Your file never leaves your computer. All the work happens inside your web brows
 
 Worth knowing before you start:
 
-- **One file at a time.** The sample dataset has one file per contract month, e.g. ZNH26 is the March 2026 contract. So in practice you look at one contract at a time. A contract is only heavily traded for a few months before trading moves to the next one. The app can't join contracts into one continuous price history or compare them side by side.
+- **Uploads are one file at a time.** An uploaded file replaces the sample until you click **Reset to startup data**. The app can't join contracts into one continuous price history.
 - **Holidays show up as gaps**, and market hours assume the main CME schedule.
 - **Prices are shown as decimals**, not in 32nds as Treasury traders quote them.
 
@@ -40,9 +42,9 @@ flowchart LR
 
     subgraph results["What you see"]
         direction TB
-        health["Data health<br/>Verdict, quality checks,<br/>insights and suggested rules"]
-        issues["Issue log<br/>Every problem,<br/>with its row number"]
-        market["Market view<br/>Price chart with VWAP,<br/>daily bars"]
+        health["Overview<br/>What's loaded, data health,<br/>what to fix first"]
+        issues["Quality<br/>Issues by type, insights,<br/>issue log"]
+        market["Analytics<br/>Daily candles, VWAP,<br/>daily bars"]
     end
 
     file --> read --> check
@@ -60,7 +62,9 @@ flowchart LR
     class browser,results area
 ```
 
-The three blue boxes are the three sections of the app. Problems are always reported in full, while the market numbers are worked out from the cleaned data only.
+The three blue boxes are the three screens of the app. Problem counts always cover everything, while the market numbers are worked out from the cleaned data (you can switch that off).
+
+For the built-in sample, steps 1 to 3 for the minute data were run ahead of time, because analysing all 5.3 million minute bars at once needs more memory than a browser tab has. The result is saved in `data/quality-report.json` and loaded at startup.
 
 For the technical design behind this (layers, data flow, key types and how to extend the app), see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -68,45 +72,46 @@ For the technical design behind this (layers, data flow, key types and how to ex
 
 ## Using the app
 
-### 1. Load some data
+### 1. The data
 
-Click **Upload CSV or Parquet file** and choose a file. You can also click one of the three samples:
+When the app opens, it loads the built-in sample: daily bars for 40 contracts across 8 markets (crude oil, S&P 500, gold, sugar, SOFR, VIX, corn and 10-year Treasuries), from a [public sample dataset](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample). The quality report covers the minute data too, about 5.3 million one-minute bars.
 
-- **Messy CSV sample.** A small made-up file with every kind of problem planted in it. It's the quickest way to see what the app can catch.
-- **Real ZN minute data.** About 97,000 one-minute price records for the 10-year US Treasury note future, March 2026 contract (ZNH26), from a [public sample dataset](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample).
-- **Real ZN daily data.** The same contract, one row per trading day: 190 days from June 2025 to March 2026. Most trading happens from mid-November to late February. Before that, many days have no trades and only a settlement price.
+To see minute charts and VWAP, run `npm run download-dataset` once. Without it, Analytics shows daily bars and says the minute data isn't downloaded.
 
-Want more real data? Run `npm run download-dataset` to get 40 contracts across 8 markets, in daily and minute form, then upload any file from `sample-data/data/`.
+To check your own data, click **Upload files** and choose a CSV or Parquet file. It replaces the sample until you click **Reset to startup data**. To see what the app catches, upload `tests/fixtures/dirty.csv`: a small made-up file with every kind of problem planted in it.
 
 Your file needs a column for each of these: contract, timestamp, open, high, low, close. A volume column is optional. Common column names are recognised automatically, so "Contract", "contract_symbol" and "Symbol" all work.
 
-### 2. Read the results
+### 2. The three screens
 
-The page has three sections. Use the links in the black bar at the top to jump between them.
+Switch screens with the tabs at the top.
 
-**Data health: can I use this data?**
-
-| Part | What it tells you |
-|---|---|
-| **Verdict** | A one-line answer: **Good to use** (green), **Usable with caveats** (amber) or **Needs attention** (red, when less than 95% of rows are usable). |
-| **Summary cards** | The share of rows you can use, rows that couldn't be read, the contracts and the dates covered. Then one card per quality check: "Passed" in green, or the number of problems found. |
-| **By contract** | The same picture for each contract, so you can see which ones are fine and which aren't. Only shown when the file has more than one contract. |
-| **Insights & suggested rules** | The most useful part. Instead of thousands of individual warnings, it explains the patterns behind them and suggests what to do. The five most serious are shown first; click **Show all** for the rest. |
-
-**Market view: what did the market do?**
+**Overview: what's loaded, and can I use it?**
 
 | Part | What it tells you |
 |---|---|
-| **Filters** | Narrow the chart, daily bars and issue log to one contract and/or a date range. |
-| **Price chart** | Closing price for one contract. **Minute data:** the 15-minute VWAP is overlaid, and the chart opens on the latest day with at least an hour of trading. Use **Previous day** / **Next day** to step through days, or set From and To for a longer period. **Daily data:** the chart shows every day in the file, with no VWAP line (a 15-minute average means nothing with one bar a day). Set From and To to zoom in. |
-| **Daily bars** | One row per contract per trading day: open, high, low, close and total volume. |
+| **Active dataset** | Where the data came from, when it loaded, how many files, contracts and records, and the dates covered. |
+| **Data health** | The share of records usable for analytics, and how many errors, warnings and info findings there are. |
+| **What to fix first** | The two most serious patterns found, each with a suggested rule. |
+| **Contracts** | Every contract with its dates, bar count and issue count. Click **Analytics** to chart it. |
 
-**Issue log: exactly what's wrong, and where?**
+**Quality: exactly what's wrong, and what to do about it?**
 
 | Part | What it tells you |
 |---|---|
-| **Quality issues** | Every problem found, most serious first, with its row number in your file. For a CSV, this is the same row number you'd see in Excel. Click a type, such as **Data gaps**, to see only that type. |
-| **Rejected rows** | Rows that couldn't be read at all, why, and what they originally contained. Empty cells are marked in red. |
+| **Counters** | Records read, accepted, rejected and issues found. Click **Rejected** to see the rows that couldn't be read, and why. |
+| **Issues by type** | How many of each kind of problem, coloured by how serious it is. |
+| **Insights** | The most useful part. Instead of thousands of individual warnings, it explains the patterns behind them and suggests a rule for each. |
+| **Issue log** | Individual problems, filtered by **Errors**, **Warnings** or **Info**. It shows a sample (up to 200 of each severity) and says how many there are in total. |
+
+**Analytics: what did the market do?**
+
+| Part | What it tells you |
+|---|---|
+| **Filters** | Contract, date range, the day for the VWAP chart, and **Exclude bars with errors** (on by default). |
+| **Daily OHLC** | One candle per trading day. Hollow green: closed up. Solid red: closed down. Shows the latest 60 days of the range. |
+| **Rolling 15 minute VWAP** | Close price and VWAP through the chosen day. Needs minute data. |
+| **Daily bars** | Open, high, low, close, volume, how many minute bars made up the day, and how many issues that day had. |
 
 All times are shown in **Chicago time (CT)**, the exchange's own time zone, exactly as they appear in the source data.
 
@@ -126,10 +131,11 @@ All times are shown in **Chicago time (CT)**, the exchange's own time zone, exac
 
 ### How problems affect the numbers
 
-- **The verdict, summary cards and insights always cover the whole file**, whatever filters you choose.
-- **The chart and daily bars use a cleaned-up copy of the data:**
-  - Rejected rows and impossible prices are left out.
-  - If a row is duplicated, the first one is kept.
+- **The counts, insights and issue log always cover all the data**, whatever filters you choose.
+- **Analytics uses a cleaned-up copy of the data:**
+  - Rejected rows are left out.
+  - With **Exclude bars with errors** on (the default), impossible prices and the second copy of a conflicting duplicate are left out too. Turn it off to see what they would do to the numbers.
+  - Exact duplicate rows are always counted once.
   - Negative volume is treated as missing.
 
 ### Jargon buster
@@ -149,14 +155,18 @@ All times are shown in **Chicago time (CT)**, the exchange's own time zone, exac
 
 ## Known limitations
 
-- **One file at a time.** Loading another file replaces the current one. Each file is checked on its own, which suits data quality work. For market analysis it means one contract at a time: there's no continuous history across contract rolls and no side-by-side comparison of contracts.
+- **Uploads are one file at a time and replace the sample.** There's no continuous history across contract rolls and no side-by-side comparison of contracts.
+- **Minute data needs a download.** The sample's minute files (about 100 MB) aren't in the repo. Without them, Analytics shows daily bars only.
+- **Only one contract's minute data is kept at a time.** Switching contracts reloads it, which takes about a second for a typical contract.
+- **The sample's quality report is precomputed.** If the quality rules change, it must be regenerated with `npm run build-quality-report` (a test fails until it is).
 - **Public holidays aren't known to the app.** A missing day of data on a holiday is flagged as a gap. The insights point out that missing weekdays are probably holidays.
 - **Market hours assume the main CME electronic schedule.** Products with different hours will show gaps at their regular closed times. The insights spot these and suggest checking the product's trading schedule.
 - **Prices are shown as decimals.** Treasury traders usually quote ZN in 32nds of a point (e.g. 112-08+). Here it's shown as 112.250000, because ZN trades in 1/64ths of a point and needs 6 decimals to be exact.
 - **Long chart periods are simplified to 2,000 points** so the chart stays fast. Very brief spikes can disappear from the chart, but they're still in the issue list. A single day of minute data is never simplified.
-- **The issue log shows the 1,000 most serious problems** for the chosen type. The counts are always complete.
+- **The issue log shows a sample**: up to 200 issues of each severity. The counts are always complete.
+- **Gap detection is noisy.** Across the sample it flags 337,793 gaps. The insights group them by contract, for example "SR3M26: 46,339 gaps spread across the trading day", which points to thin trading rather than a broken feed.
 - **Blank lines in a CSV shift the row numbers.** After a blank line, row numbers are one lower than the line in Excel.
-- **Thresholds are fixed:** gaps over 5 minutes, price moves over 10 times normal, a 15-minute VWAP, and the 95% usable-rows line for the verdict. They can be changed in code, but not yet in the app.
+- **Thresholds are fixed:** gaps over 5 minutes, price moves over 10 times normal, and a 15-minute VWAP. They can be changed in code, but not yet in the app.
 - **Daily figures won't exactly match the vendor's own daily file.** In the sample dataset, the minute data contains only about 76% of the volume reported in the daily data (107.3M vs 140.6M contracts for ZNH26, per the dataset's `files.csv`). Daily highs and lows match the vendor's on 62% of days.
 
 ## Next steps
@@ -193,38 +203,44 @@ To share it with business users without them installing anything, run `npm run b
 | `npm run typecheck` | TypeScript strict-mode check |
 | `npm run build` | Type check, then build a static site into `dist/` |
 | `npm run fetch-sample` | Re-download the sample Parquet files into `tests/fixtures/` |
-| `npm run download-dataset` | Download the full public sample (80 Parquet files, daily and minute, ~100 MB) into `sample-data/` to upload in the app |
+| `npm run download-dataset` | Download the full public sample (80 Parquet files, daily and minute, ~100 MB) into `sample-data/`. Gives Analytics its minute data. |
+| `npm run build-quality-report` | Re-analyse the full sample, one file at a time, into `data/quality-report.json` (about 20 seconds). Run after changing a quality rule. |
 
 ### Key technical decisions
 
 - **Timestamps stay in Chicago wall-clock time.** The source stores them that way and warns against converting them ([dataset README](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample)). Internally they're read with `getUTC*` so the viewer's timezone and daylight saving can't shift them.
 - **Trading day = CME session.** Bars from 17:00 CT onwards go to the next day. The dataset's own `trading_date` column is the calendar date, so it's ignored. Against the vendor's daily file, the session rule matches daily high and low on 62% of days, versus 26% for calendar dates. An integration test pins this.
 - **The VWAP window is (t − 15 min, t]**, using typical price (H+L+C)/3. If nothing traded in the window, the result is `null`. It's calculated on the full history before filtering, so the edges of a date range are correct.
-- **The chart defaults to one day for minute data.** A 15-minute VWAP is an intraday measure; months of minute data in one chart hide it. With no date filter, the chart opens on the latest day with at least 60 bars. The very latest day can be nearly empty, e.g. for an expiring contract.
+- **Startup loads daily data for every contract, minute data on demand.** Measured in Node: all 40 daily files take 0.3 s and 41 MB; all 40 minute files take 76 s and peak at 3.9 GB, too much for a browser tab. So minute data loads one contract at a time (about 0.65 s for ES in Chrome), and the minute quality report is precomputed. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- **The data files are found by Vite, not listed by hand.** The worker uses `import.meta.glob` on `data/daily/` and `sample-data/data/minute/`. If the minute folder is missing, its list is just empty.
+- **The VWAP chart defaults to one day.** A 15-minute VWAP is an intraday measure; months of minute data in one chart hide it. With no date filter, the chart opens on the latest day with at least 60 bars. The very latest day can be nearly empty, e.g. for an expiring contract.
 - **Daily data charts the whole file, without VWAP.** A contract counts as daily when it never has more than one bar per trading day. This is judged on the whole file, so a narrow date filter can't make minute data look daily.
-- **Filters and view options are separate.** `Filter` (contract, dates) changes what's analysed in the market view and issue log. `ViewOptions` (chart day, issue type) only changes what's displayed, so stepping the chart through days doesn't shrink the daily table.
-- **Quality checks run once on the whole file.** Filters only change the view.
-- **No backend and no database.** Files are a few hundred thousand rows at most, which plain TypeScript in a Web Worker handles in under a second. It also keeps every rule typed and unit-testable. DuckDB-WASM could replace the internals of `load()` and `query()` later without touching the UI.
+- **Filters and view options are separate.** `Filter` (contract, dates, exclude errors) changes what Analytics works from. `ViewOptions` (VWAP day) only changes what's displayed, so picking another day doesn't shrink the daily table.
+- **Quality checks run once on all the data.** Filters only change Analytics.
+- **No backend and no database.** One file is a few hundred thousand rows at most, which plain TypeScript in a Web Worker handles in about a second. It also keeps every rule typed and unit-testable. DuckDB-WASM could replace the internals of `load()` and `query()` later without touching the UI.
 - **Insights are rule-based, not AI.** They're deterministic, testable and need no API key. An LLM step could be added behind the same `Insight` type.
 
 ### Testing
 
-- 106 tests, all pure Node (no browser needed).
-- Unit tests cover every domain module and the display formatters.
+- 137 tests, all pure Node (no browser needed).
+- Unit tests cover every domain module, the report builder, the worker's file mapping and job queue, and the display helpers.
 - Integration tests run real file bytes through the full pipeline:
   - Exact counts for every problem planted in `dirty.csv`, including Excel-matching row numbers.
   - Real ZN data: minute volume adds up to the vendor's reported total of 107,312,444.
   - Daily bars line up with the vendor's daily file on most days.
-  - The chart opens on an active day.
-- The UI was checked by driving the running app in headless Chrome at desktop (1280px) and phone (390px) widths. It has no automated UI tests.
+  - The exclude-errors toggle changes daily volume by exactly the planted bad bars.
+- A test checks the committed quality report matches the current code version and covers all 80 files.
+- The UI was checked by driving the running app in headless Chrome at desktop (1280px) and phone (390px) widths: startup, all three screens, uploading `dirty.csv`, the exclude-errors toggle, and fast contract switching. It has no automated UI tests.
 
 ### Project layout
 
 ```
 src/domain/          business rules: pure TypeScript, no browser or file-format code
-src/application/     load() and query(): the two use cases
+src/application/     load() and query(), and the quality report builder
 src/infrastructure/  CSV/Parquet parsers and the background worker
-src/ui/              React components
+src/ui/              React screens and components
+data/                committed sample: 40 daily files and the precomputed quality report
+scripts/             dataset download and quality report build
 tests/               unit tests (mirroring src/), integration tests, sample files
 ```
 
