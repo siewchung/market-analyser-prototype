@@ -2,7 +2,7 @@
 
 This guide is for people who are new to finance. It follows one contract, ESZ25, through all three screens of the app and explains what you're looking at as you go. Every number below is from the built-in sample, so you can check it on screen.
 
-You don't need to read the README first. If a term is unfamiliar, the [jargon buster](../README.md#jargon-buster) has short definitions.
+First, get the app running: see [Getting started](../README.md#getting-started). You don't need to read the rest of the README. If a term is unfamiliar, the [jargon buster](../README.md#jargon-buster) has short definitions.
 
 ## Before you start: five ideas
 
@@ -80,7 +80,7 @@ A bar's close can't be higher than its high or lower than its low, by definition
 
 Go back to **Overview** and click **Analytics** on the ESZ25 row. (Or open the Analytics tab and pick ESZ25 from the Contract list.)
 
-> Minute data isn't in the repo. If you see "Minute data for ESZ25 isn't downloaded", run `npm run download-dataset` once, then reload. Until then you'll see daily bars only.
+> Minute data isn't in the repo. If you see "Minute data for ESZ25 isn't downloaded", stop the app (Ctrl+C), run `npm run download-dataset` once, then start it again with `npm run dev` (see [add the minute data](../README.md#optional-add-the-minute-data)). Until then you'll see daily bars only.
 
 ### Daily OHLC (the candle chart)
 
