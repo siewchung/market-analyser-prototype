@@ -54,7 +54,7 @@ Dependencies point inwards only. The domain doesn't know about React, browsers o
 | Layer | Folder | Responsibility | Knows about |
 |---|---|---|---|
 | Domain | `src/domain/` | All business rules: normalising, quality checks, cleaning, daily bars, VWAP, insights | Nothing outside itself |
-| Application | `src/application/` | `analyse.ts` wires domain steps into two use cases: `load()` (once per file) and `query()` (every filter or view change). `qualityReport.ts` merges per-file analyses into one report. | Domain |
+| Application | `src/application/` | `analyse.ts` wires domain steps into two use cases: `load()` (once per file) and `query()` (every filter or view change). It also defines what `query()` returns (`QueryResult`, `ViewOptions`), because those are shaped for the Analytics screen rather than being business rules. `qualityReport.ts` merges per-file analyses into one report. | Domain |
 | Infrastructure | `src/infrastructure/` | Turning file bytes into rows (Papa Parse, hyparquet); finding, fetching and caching data files; running the pipeline in a worker | Application, domain types |
 | UI | `src/ui/` | Rendering state and sending user actions to the worker | Worker protocol, domain types |
 

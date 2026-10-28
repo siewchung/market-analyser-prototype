@@ -6,7 +6,6 @@ export const DEFAULT_CONFIG: AnalysisConfig = {
   sessionBreak: { startMinute: 16 * 60, endMinute: 17 * 60 }, // CME daily maintenance break, 16:00-17:00 CT
   outlierK: 10,
   vwapWindowMinutes: 15,
-  maxChartPoints: 2000,
   maxIssueRows: 1000,
 };
 

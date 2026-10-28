@@ -1,18 +1,17 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import type { QueryResult } from '../../domain/types';
+import type { QueryResult } from '../../application/analyse';
 import { formatDateTime, formatNumber, formatPrice, formatShortDate, formatTime } from '../format';
 
 interface Props {
   readonly result: QueryResult;
-  readonly windowMinutes: number;
 }
 
 /**
  * Close price against the rolling VWAP for the chosen day.
  * Daily data has no intraday prices, so a VWAP over 15 minutes can't be drawn: the card explains that instead.
  */
-export function PriceVwapChart({ result, windowMinutes }: Props) {
-  const { chartRange, barInterval, vwap: points, chartPriceDecimals: decimals } = result;
+export function PriceVwapChart({ result }: Props) {
+  const { chartRange, barInterval, vwap: points, vwapWindowMinutes: windowMinutes, chartPriceDecimals: decimals } = result;
   const singleDay = chartRange !== null && chartRange.from === chartRange.to;
   const tick = (t: number) => (singleDay ? formatTime(t) : formatShortDate(t));
 

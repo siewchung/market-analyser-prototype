@@ -14,17 +14,15 @@ import type {
   AnalysisConfig,
   Bar,
   BarInterval,
-  ChartMode,
+  DailyBar,
   Filter,
   Insight,
   IssueKind,
   LoadSummary,
   ParsedFile,
   QualityIssue,
-  QueryResult,
   RejectedRow,
   Severity,
-  ViewOptions,
   VwapPoint,
 } from '../domain/types';
 
@@ -49,6 +47,40 @@ export interface Dataset {
   readonly vwapWithErrors: readonly VwapPoint[];
   readonly config: AnalysisConfig;
 }
+
+/**
+ * How the chart's dates were chosen: a day the user stepped to, the user's date filter, the default single-day view
+ * (minute data), or the whole file (daily data, where one day is only a single point).
+ */
+export type ChartMode = 'chosen_day' | 'filtered' | 'latest_active_day' | 'latest_day' | 'whole_history';
+
+/**
+ * View-only choices that don't change the data being analysed, unlike Filter.
+ * Kept separate so that, for example, stepping the chart through days doesn't shrink the daily bars table.
+ */
+export interface ViewOptions {
+  readonly chartDay?: string; // "YYYY-MM-DD": show this single day on the chart
+}
+
+/** Everything the Analytics screen needs for the current filter. Shaped for the screen, which is why it lives here and not in the domain. */
+export interface QueryResult {
+  readonly daily: readonly DailyBar[];
+  readonly chartContract: string | null; // the chart shows one contract at a time
+  readonly barInterval: BarInterval; // daily data is charted differently: whole history, and no VWAP line
+  // Dates the chart covers, and why. With no date filter, minute data shows a single day, because a 15-minute VWAP
+  // is only meaningful at intraday zoom: the latest day with at least an hour of trading, or failing that the latest day.
+  // Daily data shows every day in the file instead, so the price movement is visible.
+  readonly chartRange: { readonly from: string; readonly to: string; readonly mode: ChartMode } | null;
+  readonly chartDays: readonly string[]; // every trading day the chart contract has data for (within the date filter), oldest first
+  readonly vwap: readonly VwapPoint[]; // for chartContract and chartRange only, downsampled for the chart
+  // The VWAP window the numbers were worked out with, so the chart's title always matches the data behind it.
+  readonly vwapWindowMinutes: number;
+  readonly chartPriceDecimals: number; // decimal places for chartContract's prices, so a column of prices lines up
+  readonly issuesByDay: Readonly<Record<string, number>>; // chartContract's issue count per trading day, for the daily bars table
+}
+
+/** Charts can't usefully show more points than this and get slow trying, so longer series are thinned out. */
+const MAX_CHART_POINTS = 2000;
 
 const SEVERITY_ORDER: readonly Severity[] = ['error', 'warning', 'info'];
 
@@ -134,7 +166,8 @@ export function query(dataset: Dataset, filter: Filter, view: ViewOptions = {}):
     barInterval,
     chartRange: first && last ? { from: first.tradingDate, to: last.tradingDate, mode } : null,
     chartDays: [...new Set(contractPoints.map((p) => p.tradingDate))],
-    vwap: downsample(vwap, config.maxChartPoints),
+    vwap: downsample(vwap, MAX_CHART_POINTS),
+    vwapWindowMinutes: config.vwapWindowMinutes,
     chartPriceDecimals: (chartContract ? dataset.summary.priceDecimals[chartContract] : undefined) ?? 2,
     issuesByDay,
   };

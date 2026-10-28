@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { QueryResult, ViewOptions } from '../application/analyse';
 import type { QualityReport } from '../application/qualityReport';
-import type { Filter, QueryResult, ViewOptions } from '../domain/types';
+import type { Filter } from '../domain/types';
 import type { DataOrigin, WorkerRequest, WorkerResponse } from '../infrastructure/worker/protocol';
 
 /** Where the app is up to. Each state carries only the data that makes sense in that state. */

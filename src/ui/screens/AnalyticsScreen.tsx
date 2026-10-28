@@ -1,5 +1,5 @@
-import { DEFAULT_CONFIG } from '../../domain/config';
-import type { Filter, ViewOptions } from '../../domain/types';
+import type { ViewOptions } from '../../application/analyse';
+import type { Filter } from '../../domain/types';
 import { DailyBarsTable } from '../components/DailyBarsTable';
 import { DailyCandleChart } from '../components/DailyCandleChart';
 import { PriceVwapChart } from '../components/PriceVwapChart';
@@ -98,7 +98,7 @@ export function AnalyticsScreen({ state, onFilter, onView }: Props) {
         <>
           <div className={`grid grid-2${state.pending ? ' is-pending' : ''}`}>
             <DailyCandleChart bars={result.daily} priceDecimals={result.chartPriceDecimals} />
-            <PriceVwapChart result={result} windowMinutes={DEFAULT_CONFIG.vwapWindowMinutes} />
+            <PriceVwapChart result={result} />
           </div>
           <div className={state.pending ? 'is-pending' : undefined}>
             <DailyBarsTable bars={result.daily} priceDecimals={result.chartPriceDecimals} issuesByDay={result.issuesByDay} />

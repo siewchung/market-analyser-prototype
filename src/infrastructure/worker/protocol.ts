@@ -1,5 +1,6 @@
+import type { QueryResult, ViewOptions } from '../../application/analyse';
 import type { QualityReport } from '../../application/qualityReport';
-import type { Filter, QueryResult, ViewOptions } from '../../domain/types';
+import type { Filter } from '../../domain/types';
 
 /**
  * The messages passed between the page and the background worker.
