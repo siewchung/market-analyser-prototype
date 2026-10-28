@@ -67,10 +67,24 @@ export function DailyCandleChart({ bars, priceDecimals }: Props) {
       ) : (
         <div className="chart">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={shown} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            {/* Extra bottom margin leaves room for the horizontal axis title. */}
+            <ComposedChart data={shown} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
-              <XAxis dataKey="tradingDate" minTickGap={24} stroke="var(--muted)" tick={{ fontSize: 12 }} />
-              <YAxis domain={['auto', 'auto']} width={64} stroke="var(--muted)" tick={{ fontSize: 12 }} tickFormatter={(v: number) => formatNumber(v, Math.min(priceDecimals, 3))} />
+              <XAxis
+                dataKey="tradingDate"
+                minTickGap={24}
+                stroke="var(--muted)"
+                tick={{ fontSize: 12 }}
+                label={{ value: 'Trading date (CME session)', position: 'insideBottom', offset: -16, fill: 'var(--muted)', fontSize: 12 }}
+              />
+              <YAxis
+                domain={['auto', 'auto']}
+                width={80}
+                stroke="var(--muted)"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(v: number) => formatNumber(v, Math.min(priceDecimals, 3))}
+                label={{ value: 'Price', angle: -90, position: 'insideLeft', fill: 'var(--muted)', fontSize: 12 }}
+              />
               <Tooltip
                 formatter={(_value, _name, item) => {
                   const d = item.payload as DailyBar;
