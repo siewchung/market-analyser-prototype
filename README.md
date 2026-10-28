@@ -16,6 +16,51 @@ Your files never leave your computer. All the work happens inside your web brows
 
 > This is a prototype built for a coding exercise (brief in [`docs/`](docs/)). It's deliberately simple.
 
+## Getting started
+
+You'll need about 10 minutes the first time. After that, starting the app is one command.
+
+**1. Install Node.js.** Node runs the app on your computer. Download the LTS version from [nodejs.org](https://nodejs.org) and install it like any other program. You need version 22.18 or newer. To check what you have, open a terminal and type `node --version`.
+
+**2. Get the code.** On the [GitHub page](https://github.com/siewchung/market-analyser-prototype), click the green **Code** button, then **Download ZIP**, and unzip it. (If you use git: `git clone https://github.com/siewchung/market-analyser-prototype.git`.)
+
+**3. Open a terminal in that folder.**
+
+- Mac: open **Terminal**, type `cd ` (with a space), drag the unzipped folder onto the window, and press Enter.
+- Windows: open the unzipped folder, click the address bar, type `cmd`, and press Enter.
+
+**4. Install the app's building blocks.** This downloads what the app needs. It only needs doing once and takes a minute or two.
+
+```bash
+npm install
+```
+
+**5. Start the app.**
+
+```bash
+npm run dev
+```
+
+It prints a link, usually http://localhost:5173. Open it in Chrome, Edge or Firefox. You'll see the Overview screen with the sample data already loaded.
+
+The app keeps running while the terminal is open. To stop it, click the terminal and press **Ctrl+C**. To start it again later, repeat steps 3 and 5.
+
+### Optional: add the minute data
+
+The app works without this, but the Analytics screen only shows daily bars until you do it. To see the intraday chart and VWAP:
+
+1. Stop the app (Ctrl+C).
+2. Run `npm run download-dataset`. This downloads about 100 MB.
+3. Start the app again with `npm run dev`.
+
+You'll see two lines starting with `WARNING` about `README.md` and `dataset.json`. That's expected. The dataset publisher's checksum list is out of date for those two files, and they aren't used by the app.
+
+### If something goes wrong
+
+- **`node` or `npm` "not found"**: Node isn't installed, or the terminal was open before you installed it. Close the terminal, open a new one, and try again.
+- **An error mentioning `.ts` or "Unknown file extension"** when you run `download-dataset`: your Node is too old. Install the latest LTS.
+- **The link doesn't open**: check the terminal is still running and use the exact address it printed. The number at the end can change if 5173 is already in use.
+
 ## What it doesn't do (yet)
 
 Worth knowing before you start:
@@ -76,7 +121,7 @@ For the technical design behind this (layers, data flow, key types and how to ex
 
 When the app opens, it loads the built-in sample: daily bars for 40 contracts across 8 markets (crude oil, S&P 500, gold, sugar, SOFR, VIX, corn and 10-year Treasuries), from a [public sample dataset](https://huggingface.co/datasets/lynx1231/historical-futures-data-sample). The quality report covers the minute data too, about 5.3 million one-minute bars.
 
-To see minute charts and VWAP, run `npm run download-dataset` once. Without it, Analytics shows daily bars and says the minute data isn't downloaded.
+To see minute charts and VWAP, download the minute data once (see [add the minute data](#optional-add-the-minute-data)). Without it, Analytics shows daily bars and says the minute data isn't downloaded.
 
 To check your own data, click **Upload files** and choose a CSV or Parquet file. It replaces the sample until you click **Reset to startup data**. To see what the app catches, upload `tests/fixtures/dirty.csv`: a small made-up file with every kind of problem planted in it.
 
