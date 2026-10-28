@@ -14,6 +14,8 @@ export function PriceVwapChart({ result }: Props) {
   const { chartRange, barInterval, vwap: points, vwapWindowMinutes: windowMinutes, chartPriceDecimals: decimals } = result;
   const singleDay = chartRange !== null && chartRange.from === chartRange.to;
   const tick = (t: number) => (singleDay ? formatTime(t) : formatShortDate(t));
+  // The horizontal axis shows clock times for one day, or dates when the range spans several days.
+  const xAxisTitle = singleDay ? 'Time (CT)' : 'Date (CT)';
 
   return (
     <section className="card" aria-labelledby="vwap-chart">
@@ -31,10 +33,28 @@ export function PriceVwapChart({ result }: Props) {
         <>
           <div className="chart">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={[...points]} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+              {/* Extra bottom margin leaves room for the horizontal axis title. */}
+              <LineChart data={[...points]} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
-                <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={tick} minTickGap={40} stroke="var(--muted)" tick={{ fontSize: 12 }} />
-                <YAxis domain={['auto', 'auto']} width={64} stroke="var(--muted)" tick={{ fontSize: 12 }} tickFormatter={(v: number) => formatNumber(v, Math.min(decimals, 3))} />
+                <XAxis
+                  dataKey="timestamp"
+                  type="number"
+                  scale="time"
+                  domain={['dataMin', 'dataMax']}
+                  tickFormatter={tick}
+                  minTickGap={40}
+                  stroke="var(--muted)"
+                  tick={{ fontSize: 12 }}
+                  label={{ value: xAxisTitle, position: 'insideBottom', offset: -16, fill: 'var(--muted)', fontSize: 12 }}
+                />
+                <YAxis
+                  domain={['auto', 'auto']}
+                  width={80}
+                  stroke="var(--muted)"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(v: number) => formatNumber(v, Math.min(decimals, 3))}
+                  label={{ value: 'Price', angle: -90, position: 'insideLeft', fill: 'var(--muted)', fontSize: 12 }}
+                />
                 <Tooltip labelFormatter={(t) => `${formatDateTime(Number(t))} CT`} formatter={(v) => (typeof v === 'number' ? formatPrice(v, decimals) : String(v))} />
                 <Line dataKey="close" name="Close" stroke="var(--series-close)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
                 <Line dataKey="vwap" name="VWAP" stroke="var(--series-vwap)" strokeWidth={2.5} strokeDasharray="6 4" dot={false} isAnimationActive={false} connectNulls />
