@@ -90,6 +90,7 @@ export interface Filter {
   readonly contracts: readonly string[];
   readonly from?: string;
   readonly to?: string;
+  readonly excludeErrors?: boolean; // leave bars with error-level issues out of the analytics (default: true)
 }
 
 /** A recurring pattern found in the quality issues, with a rule we suggest adopting. */
@@ -113,13 +114,14 @@ export interface AnalysisConfig {
   readonly sessionBreak: { readonly startMinute: number; readonly endMinute: number }; // minutes after midnight CT
   readonly outlierK: number; // how many MADs away counts as an outlier
   readonly vwapWindowMinutes: number;
-  readonly maxChartPoints: number;
   readonly maxIssueRows: number;
 }
 
 /** Quality at a glance for one contract, so users can see which contracts are fine and which aren't. */
 export interface ContractHealth {
   readonly contract: string;
+  readonly firstDate: string; // first trading day with a readable bar, "YYYY-MM-DD"
+  readonly lastDate: string; // last trading day with a readable bar
   readonly bars: number; // readable bars for this contract
   readonly usableBars: number; // bars left after cleaning
   readonly errors: number;
@@ -141,36 +143,5 @@ export interface LoadSummary {
   readonly priceDecimals: Readonly<Record<string, number>>; // per contract, so prices line up in tables and charts
 }
 
-/**
- * How the chart's dates were chosen: a day the user stepped to, the user's date filter, the default single-day view
- * (minute data), or the whole file (daily data, where one day is only a single point).
- */
-export type ChartMode = 'chosen_day' | 'filtered' | 'latest_active_day' | 'latest_day' | 'whole_history';
-
 /** How far apart the chart contract's bars are: one per trading day ('daily'), or several per day ('intraday', e.g. minute bars). */
 export type BarInterval = 'daily' | 'intraday';
-
-/**
- * View-only choices that don't change the data being analysed, unlike Filter.
- * Kept separate so that, for example, stepping the chart through days doesn't shrink the daily bars table.
- */
-export interface ViewOptions {
-  readonly chartDay?: string; // "YYYY-MM-DD": show this single day on the chart
-  readonly issueKind?: IssueKind; // show only this kind of issue in the issue log
-}
-
-/** Everything the dashboard needs for the current filter. */
-export interface QueryResult {
-  readonly daily: readonly DailyBar[];
-  readonly chartContract: string | null; // the chart shows one contract at a time
-  readonly barInterval: BarInterval; // daily data is charted differently: whole history, and no VWAP line
-  // Dates the chart covers, and why. With no date filter, minute data shows a single day, because a 15-minute VWAP
-  // is only meaningful at intraday zoom: the latest day with at least an hour of trading, or failing that the latest day.
-  // Daily data shows every day in the file instead, so the price movement is visible.
-  readonly chartRange: { readonly from: string; readonly to: string; readonly mode: ChartMode } | null;
-  readonly chartDays: readonly string[]; // every trading day the chart contract has data for (within the date filter), oldest first
-  readonly vwap: readonly VwapPoint[]; // for chartContract and chartRange only, downsampled for the chart
-  readonly issues: readonly QualityIssue[]; // capped at maxIssueRows
-  readonly totalIssues: number; // the real count before the cap
-  readonly issueCountsInView: Readonly<Record<IssueKind, number>>; // per kind, for the current filter (ignores the issueKind choice)
-}

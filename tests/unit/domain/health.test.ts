@@ -50,8 +50,15 @@ describe('contractHealth', () => {
     const issue = (kind: IssueKind, contract: string) => ({ kind, contract, timestamp: 0, sourceRows: [1] }) as QualityIssue;
     const result = contractHealth([...es, ...cl], [es[0]!, ...cl], [issue('invalid_price', 'ESZ25'), issue('gap', 'ESZ25'), issue('no_range_zero_volume', 'CLZ25')]);
     expect(result).toEqual([
-      { contract: 'CLZ25', bars: 1, usableBars: 1, errors: 0, warnings: 0, info: 1 },
-      { contract: 'ESZ25', bars: 2, usableBars: 1, errors: 1, warnings: 1, info: 0 },
+      { contract: 'CLZ25', firstDate: '2025-11-03', lastDate: '2025-11-03', bars: 1, usableBars: 1, errors: 0, warnings: 0, info: 1 },
+      { contract: 'ESZ25', firstDate: '2025-11-03', lastDate: '2025-11-03', bars: 2, usableBars: 1, errors: 1, warnings: 1, info: 0 },
     ]);
+  });
+});
+
+describe('contractHealth dates', () => {
+  it('reports the first and last trading date for each contract', () => {
+    const bars = [bar({ at: '2025-11-05T09:30' }), bar({ at: '2025-11-03T09:30' })];
+    expect(contractHealth(bars, bars, [])[0]).toMatchObject({ firstDate: '2025-11-03', lastDate: '2025-11-05' });
   });
 });
